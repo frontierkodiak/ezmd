@@ -1,0 +1,493 @@
+Directory tree, stemming from root "ezmd":
+├── .gitignore (172 lines)
+├── .python-version (2)
+├── README.md (1)
+├── dev (73)
+│   └── prompts.txt (73)
+├── pyproject.toml (12)
+├── src (0)
+└── tests (0)
+---
+---
+Full Path: .gitignore
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+#   For a library or package, you might want to ignore these files since the code is
+#   intended to run in multiple environments; otherwise, check them in:
+# .python-version
+
+# pipenv
+#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
+#   However, in case of collaboration, if having platform-specific dependencies or dependencies
+#   having no cross-platform support, pipenv may install dependencies that don't work, or not
+#   install all needed dependencies.
+#Pipfile.lock
+
+# UV
+#   Similar to Pipfile.lock, it is generally recommended to include uv.lock in version control.
+#   This is especially recommended for binary packages to ensure reproducibility, and is more
+#   commonly ignored for libraries.
+#uv.lock
+
+# poetry
+#   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
+#   This is especially recommended for binary packages to ensure reproducibility, and is more
+#   commonly ignored for libraries.
+#   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
+#poetry.lock
+
+# pdm
+#   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
+#pdm.lock
+#   pdm stores project-wide configurations in .pdm.toml, but it is recommended to not include it
+#   in version control.
+#   https://pdm.fming.dev/latest/usage/project/#working-with-version-control
+.pdm.toml
+.pdm-python
+.pdm-build/
+
+# PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# PyCharm
+#  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
+#  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
+#  and can be added to the global gitignore or merged into this file.  For a more nuclear
+#  option (not recommended) you can uncomment the following to ignore the entire idea folder.
+#.idea/
+
+# PyPI configuration file
+.pypirc
+
+
+---
+Full Path: .python-version
+
+3.10
+
+
+---
+Full Path: pyproject.toml
+
+[project]
+name = "ezmd"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "google-genai>=0.4.0",
+    "markitdown>=0.0.1a3",
+    "textual>=1.0.0",
+]
+
+
+---
+Full Path: README.md
+
+
+
+---
+Full Path: .gitignore
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+#   For a library or package, you might want to ignore these files since the code is
+#   intended to run in multiple environments; otherwise, check them in:
+# .python-version
+
+# pipenv
+#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
+#   However, in case of collaboration, if having platform-specific dependencies or dependencies
+#   having no cross-platform support, pipenv may install dependencies that don't work, or not
+#   install all needed dependencies.
+#Pipfile.lock
+
+# UV
+#   Similar to Pipfile.lock, it is generally recommended to include uv.lock in version control.
+#   This is especially recommended for binary packages to ensure reproducibility, and is more
+#   commonly ignored for libraries.
+#uv.lock
+
+# poetry
+#   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
+#   This is especially recommended for binary packages to ensure reproducibility, and is more
+#   commonly ignored for libraries.
+#   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
+#poetry.lock
+
+# pdm
+#   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
+#pdm.lock
+#   pdm stores project-wide configurations in .pdm.toml, but it is recommended to not include it
+#   in version control.
+#   https://pdm.fming.dev/latest/usage/project/#working-with-version-control
+.pdm.toml
+.pdm-python
+.pdm-build/
+
+# PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# PyCharm
+#  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
+#  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
+#  and can be added to the global gitignore or merged into this file.  For a more nuclear
+#  option (not recommended) you can uncomment the following to ignore the entire idea folder.
+#.idea/
+
+# PyPI configuration file
+.pypirc
+
+
+---
+Full Path: .python-version
+
+3.10
+
+
+---
+Full Path: pyproject.toml
+
+[project]
+name = "ezmd"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "google-genai>=0.4.0",
+    "markitdown>=0.0.1a3",
+    "textual>=1.0.0",
+]
+
+
+---
+Full Path: README.md
+
+
+
+---
+Full Path: dev/prompts.txt
+
+---
+<codebase>
+
+</codebase>
+<metaprompt>
+You are an expert software engineer.
+
+You are tasked with following my instructions.
+
+Use the included project instructions as a general guide.
+
+You will respond with 2 sections: A summary section and an XML section.
+
+Here are some notes on how you should respond in the summary section:
+
+- Provide a brief overall summary
+- Provide a 1-sentence summary for each file changed and why.
+- Provide a 1-sentence summary for each file deleted and why.
+- Provide a summary of under- or ambiguously-specified components, where you require clarification or additional information to finish the implementation. Identify all potentially-problematic ambiguities for which I should provide additional context. For each, indicate the specifc information or clarification that you are requesting.
+	- Only ask for clarifications/additional information for non-trivial ambiguities.
+- If working from a multistep implementation plan, return an updated version of the implementation plan with the completed items checked off. If you require additional information or would like clarifications for any of the files changed, make note of this under the corresponding bullet in the implementation plan.
+- Format this section as markdown.
+
+Here are some notes on how you should respond in the XML section:
+
+- Respond with the XML and nothing else
+- Include all of the changed files
+- Specify each file operation with CREATE, UPDATE, or DELETE
+- If it is a CREATE or UPDATE include the full file code. Do not get lazy.
+	- If the requirements for the code are ambiguous or underspecified, you should make your best guess, but add comments of the form: `# CLARIFY: <the aspect that requires clarification or additonal information>)` .
+	- It is critical that you leave comments to document the assumptions you made in your 'best-guess' implementation. Assumptions should be documented with code comments of `# ASSUMPTION <the assumptions made for the best-guess implementation`.
+		- These comments should be left in the body of the code implementation. Higher-level ambiguities can be documented in class or method docstrings.
+	- Always return the full file code, even if additional information is required before finalizing the work. Simply make your best guess and follow the CLARIFY/ASSUMPTION comment guidelines. Do not get lazy.
+	- Do not remove comments from the existing code (except for those which are no longer relevant). New code should be documented and logged with a similar depth as the existing code, unless I explicitly request otherwise. 
+		- Feel free to refine or rewrite existing comments/documentation in your reimplementation, if there's adjustments that you find appropriate to better-document the code. Just don't strip comments or docstrings from the reimplementation unless I specifically ask you to.
+- Each file should include a brief change summary.
+- Include the full file path
+- I am going to copy/paste that entire XML section into a parser to automatically apply the changes you made, so put the XML block inside a markdown codeblock.
+- Make sure to enclose the code with ![CDATA[__CODE HERE__]]
+
+Here is how you should structure the XML:
+
+<code_changes>
+<changed_files>
+<file>
+<file_summary>**BRIEF CHANGE SUMMARY HERE**</file_summary>
+<file_operation>**FILE OPERATION HERE**</file_operation>
+<file_path>**FILE PATH HERE**</file_path>
+<file_code><![CDATA[
+__FULL FILE CODE HERE__
+]]></file_code>
+</file>
+**REMAINING FILES HERE**
+</changed_files>
+</code_changes>
+
+So the XML section will be:
+
+```xml
+__XML HERE__
+```
+</metaprompt>
+
+<task_0>
+Implement the entirety of the 'ezmd' tool.
+</task_0>
+<task_1>
+Draft a README.md for the 'ezmd' tool. Generate a pithy description of the tool and fill it into the 'description' field of pyproject.toml.
+</task_1>
+<prompt>
+Complete both tasks, returning responses in the format described in the metaprompt.
+</prompt>
+---
+

@@ -1,0 +1,73 @@
+---
+<codebase>
+
+</codebase>
+<metaprompt>
+You are an expert software engineer.
+
+You are tasked with following my instructions.
+
+Use the included project instructions as a general guide.
+
+You will respond with 2 sections: A summary section and an XML section.
+
+Here are some notes on how you should respond in the summary section:
+
+- Provide a brief overall summary
+- Provide a 1-sentence summary for each file changed and why.
+- Provide a 1-sentence summary for each file deleted and why.
+- Provide a summary of under- or ambiguously-specified components, where you require clarification or additional information to finish the implementation. Identify all potentially-problematic ambiguities for which I should provide additional context. For each, indicate the specifc information or clarification that you are requesting.
+	- Only ask for clarifications/additional information for non-trivial ambiguities.
+- If working from a multistep implementation plan, return an updated version of the implementation plan with the completed items checked off. If you require additional information or would like clarifications for any of the files changed, make note of this under the corresponding bullet in the implementation plan.
+- Format this section as markdown.
+
+Here are some notes on how you should respond in the XML section:
+
+- Respond with the XML and nothing else
+- Include all of the changed files
+- Specify each file operation with CREATE, UPDATE, or DELETE
+- If it is a CREATE or UPDATE include the full file code. Do not get lazy.
+	- If the requirements for the code are ambiguous or underspecified, you should make your best guess, but add comments of the form: `# CLARIFY: <the aspect that requires clarification or additonal information>)` .
+	- It is critical that you leave comments to document the assumptions you made in your 'best-guess' implementation. Assumptions should be documented with code comments of `# ASSUMPTION <the assumptions made for the best-guess implementation`.
+		- These comments should be left in the body of the code implementation. Higher-level ambiguities can be documented in class or method docstrings.
+	- Always return the full file code, even if additional information is required before finalizing the work. Simply make your best guess and follow the CLARIFY/ASSUMPTION comment guidelines. Do not get lazy.
+	- Do not remove comments from the existing code (except for those which are no longer relevant). New code should be documented and logged with a similar depth as the existing code, unless I explicitly request otherwise. 
+		- Feel free to refine or rewrite existing comments/documentation in your reimplementation, if there's adjustments that you find appropriate to better-document the code. Just don't strip comments or docstrings from the reimplementation unless I specifically ask you to.
+- Each file should include a brief change summary.
+- Include the full file path
+- I am going to copy/paste that entire XML section into a parser to automatically apply the changes you made, so put the XML block inside a markdown codeblock.
+- Make sure to enclose the code with ![CDATA[__CODE HERE__]]
+
+Here is how you should structure the XML:
+
+<code_changes>
+<changed_files>
+<file>
+<file_summary>**BRIEF CHANGE SUMMARY HERE**</file_summary>
+<file_operation>**FILE OPERATION HERE**</file_operation>
+<file_path>**FILE PATH HERE**</file_path>
+<file_code><![CDATA[
+__FULL FILE CODE HERE__
+]]></file_code>
+</file>
+**REMAINING FILES HERE**
+</changed_files>
+</code_changes>
+
+So the XML section will be:
+
+```xml
+__XML HERE__
+```
+</metaprompt>
+
+<task_0>
+Implement the entirety of the 'ezmd' tool.
+</task_0>
+<task_1>
+Draft a README.md for the 'ezmd' tool. Generate a pithy description of the tool and fill it into the 'description' field of pyproject.toml.
+</task_1>
+<prompt>
+Complete both tasks, returning responses in the format described in the metaprompt.
+</prompt>
+---
