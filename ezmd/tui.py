@@ -61,30 +61,26 @@ def convert_document_flow(config: dict) -> None:
     if is_google_gemini_available(config):
         available_providers.append("google_gemini")
 
-    # The user can pick none or from the available providers
     default_provider = config.get("default_provider", None)
     if default_provider not in available_providers:
-        # the default might be disabled, or no key
         default_provider = None
 
     print("\nAvailable LLM Providers:")
     print(" (0) None (no LLM usage)")
     for idx, prov in enumerate(available_providers, start=1):
-        print(f" ({idx}) {prov} {'(default)' if prov == default_provider else ''}")
+        mark = "(default)" if prov == default_provider else ""
+        print(f" ({idx}) {prov} {mark}")
 
     provider_choice = input("Choose LLM provider [Press Enter for default]: ").strip()
     chosen_provider = None
     if provider_choice == "":
-        # Means user wants default
         chosen_provider = default_provider
     else:
         if provider_choice == "0":
             chosen_provider = None
         else:
-            # parse numeric
             try:
                 numeric = int(provider_choice)
-                # if valid
                 if 1 <= numeric <= len(available_providers):
                     chosen_provider = available_providers[numeric - 1]
                 else:
@@ -94,7 +90,7 @@ def convert_document_flow(config: dict) -> None:
                 print("[!] Invalid provider selection, ignoring.")
                 chosen_provider = None
 
-    # Overwrite or version?
+    # Overwrite or interactive version approach
     force_overwrite_default = config.get("force_overwrite_default", False)
     prompt = (
         f"Overwrite if file exists? (Y/n) [default={'Y' if force_overwrite_default else 'N'}]: "
@@ -102,29 +98,22 @@ def convert_document_flow(config: dict) -> None:
     ow_input = input(prompt).strip().lower()
 
     if ow_input == "":
-        # means no input, so default
         overwrite = True if force_overwrite_default else False
     elif ow_input.startswith("y"):
         overwrite = True
     else:
         overwrite = False
 
-    # Check if windows path
+    # local path check
     if not source.startswith("http"):
         if is_windows_path(source):
             source = translate_windows_path_to_wsl(source)
 
-        # check if local path exists if not URL
         if not os.path.exists(source):
             print(f"[!] Local file path does not exist: {source}")
             return
 
-    # We call our converter
     print("\n[Converting... please wait]")
-    # We'll do a minimal spinner
-    # We call the actual function in a separate thread or just do a simple approach
-    # For simplicity, let's do a synchronous approach with a mini spinner.
-    # Then do the real conversion.
     import threading
 
     spinner_stop = False
@@ -142,7 +131,6 @@ def convert_document_flow(config: dict) -> None:
     thread = threading.Thread(target=spinner_run)
     thread.start()
 
-    # Actually call converter
     md_path = None
     error_message = None
     try:
@@ -238,14 +226,12 @@ def providers_submenu(config: dict) -> None:
         print("│ Manage Providers               │")
         print("├──────────────────────────────────┤")
         provs = config.get("providers", {})
-        # We assume 'openai' and 'google_gemini' exist in the dictionary, but let's ensure:
         if "openai" not in provs:
             provs["openai"] = {"enabled": False, "default_model": "gpt-4"}
         if "google_gemini" not in provs:
             provs["google_gemini"] = {"enabled": False, "default_model": "gemini-2.0-flash-exp"}
 
         print(f"│ openai -> (enabled={provs['openai']['enabled']}) ")
-        # We'll mask the key if present
         openai_key = os.environ.get("EZMD_OPENAI_KEY", None)
         openai_key_str = f"<Yes, starts with {openai_key[:6]}...>" if openai_key else "<No>"
         print(f"│   Key in env: {openai_key_str}")
@@ -272,14 +258,13 @@ def providers_submenu(config: dict) -> None:
             save_config(config)
         elif choice == "3":
             newkey = input("Enter new key for openai (blank to remove): ").strip()
-            set_openai_key(newkey if newkey else None)
+            set_openai_key(newkey if newkey else "")
         elif choice == "4":
             newkey = input("Enter new key for google_gemini (blank to remove): ").strip()
-            set_google_gemini_key(newkey if newkey else None)
+            set_google_gemini_key(newkey if newkey else "")
         elif choice == "5":
             break
         else:
             print("[!] Invalid selection")
-    # Save final config
     config["providers"] = provs
     save_config(config)
