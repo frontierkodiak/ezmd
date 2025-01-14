@@ -1,16 +1,16 @@
 Directory tree, stemming from root "/home/caleb/repo/ezmd":
-├── README.md (63 lines)
-├── ezmd (1211)
-│   ├── README.md (73)
+├── README.md (73 lines)
+├── ezmd (1090)
 │   ├── __init__.py (2)
 │   ├── config_manager.py (141)
-│   ├── converter.py (204)
+│   ├── converter.py (147)
 │   ├── main.py (51)
-│   ├── provider_manager.py (152)
+│   ├── provider_manager.py (155)
 │   ├── rsync_manager.py (89)
-│   ├── tui.py (468)
+│   ├── tui.py (474)
 │   └── windows_path_utils.py (31)
-└── pyproject.toml (12)
+├── ezmd.egg-info (0)
+└── pyproject.toml (14)
 ----
 ----
 Full Path: pyproject.toml
@@ -27,6 +27,8 @@ dependencies = [
     "textual>=1.0.0",
 ]
 
+[project.scripts]
+ezmd = "ezmd.main:entry_point"
 
 ----
 Full Path: README.md
@@ -39,14 +41,16 @@ ezmd is an **Easy Markdown** tool for converting documents to Markdown using
 ## Features
 
 - Converts from local files (PDF, docx, images, etc.) or URLs.
-- (Optional) LLM-based image descriptions (OpenAI or Google Gemini).
-- TUI-based interactive setup and usage.
-- Automatic collision handling with `_v2`, `_v3` naming if overwrite is disallowed.
-- WSL2 local path support for Windows paths.
+- (Optional) LLM-based image descriptions (OpenAI only).
+- If Google Gemini is selected, MarkItDown is *not* called with the Gemini LLM; 
+  instead, ezmd does a *custom* post-processing step, appended to the final Markdown.
+- Automatic collision handling: if a file exists, ezmd prompts for a new version 
+  or a custom filename, letting you cancel if needed.
+- WSL2 path support for Windows paths.
 
 ## Installation
 
-1. Ensure you have [uv](https://github.com/astral-sh/uv) installed and available.
+1. Ensure you have [uv](https://github.com/astral-sh/uv) installed.
 2. Clone or download this project.
 3. `cd` into the project and run:
    ```bash
@@ -55,45 +59,53 @@ ezmd is an **Easy Markdown** tool for converting documents to Markdown using
    ```
 4. You can now invoke `ezmd` from the shell.
 
+## Environment Variables in `.env`
+
+ezmd stores your API keys in `~/.config/ezmd/ezmd.env`.  
+Each time you run the tool, the environment is reloaded, so 
+your keys persist across new shells in the uv environment.
+
+For example:
+```
+EZMD_OPENAI_KEY=sk-...
+EZMD_GOOGLE_GEMINI_KEY=AIza...
+```
+
 ## Usage
 
 1. **First Run**  
-   - If no configuration file exists at `~/.config/ezmd/config.json`, you'll see a first-time setup wizard.
-   - Provide base paths, toggle providers, and optionally paste your LLM keys.
+   - If no configuration file exists (`~/.config/ezmd/config.json`), 
+     you'll see a setup wizard. Provide base paths, toggle providers, 
+     and optionally paste your LLM keys.
 
 2. **Converting a Document**  
-   - Run `ezmd` and select "1) Convert a Document".
+   - Run `ezmd` -> "1) Convert a Document".
    - Provide a title and the source (URL or local path).
-   - If you have LLM usage enabled, pick which LLM provider (OpenAI or Google).
-   - A spinner is displayed, and upon completion, the `.md` file is saved in `~/context/`.
+   - Choose an LLM provider (OpenAI or Google Gemini). 
+     - If OpenAI, MarkItDown uses OpenAI for image analysis. 
+     - If Google Gemini, we skip MarkItDown’s built-in approach and do a custom `_do_gemini_processing` step appended at the end.
+   - If collisions occur, ezmd prompts for a new name or `c` to cancel.
+   - The `.md` file is saved in `~/context/` by default.
 
 3. **Configuration**  
-   - At any time, select "2) Configuration" from the main menu.
-   - Change default options, toggle providers, set or clear LLM keys, etc.
+   - "2) Configuration" from the main menu lets you 
+     adjust paths, default providers, etc.
 
 4. **Exit**  
    - Choose "3) Exit".
 
-## WSL2 Path Handling
-
-If you’re using Windows paths in WSL2 (e.g., `C:\Users\front\Zotero\paper.pdf`), 
-ezmd automatically converts them to `/mnt/c/Users/front/Zotero/paper.pdf`.
-
-## LLM Integration
-
-- **OpenAI**: We store the key in the environment variable `EZMD_OPENAI_KEY`. 
-  MarkItDown uses the standard OpenAI API calls for image or PDF embedding usage.
-- **Google Gemini**: Some partial support is included, but might need additional 
-  code changes if MarkItDown isn't fully compatible with google-genai.
-
 ## Development
 
-- You can develop and debug with VSCode by opening the folder in the uv environment, 
-  or by editing code directly. You can run `uv run python -m ezmd.main` or `uv run python -m debugpy --listen 5678 -m ezmd.main` for debugging.
+- You can develop and debug with VSCode or directly using:
+  ```bash
+  uv run python -m ezmd.main
+  ```
+- Logs appear in stdout.  
+- The environment variables are stored in `.env` at `~/.config/ezmd/ezmd.env`.
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License. 
 
 ----
 Full Path: ezmd/rsync_manager.py
@@ -389,83 +401,6 @@ if __name__ == "__main__":
     entry_point()
 
 ----
-Full Path: ezmd/README.md
-
-# ezmd
-
-ezmd is an **Easy Markdown** tool for converting documents to Markdown using 
-[MarkItDown](https://github.com/microsoft/markitdown). 
-
-## Features
-
-- Converts from local files (PDF, docx, images, etc.) or URLs.
-- (Optional) LLM-based image descriptions (OpenAI only).
-- If Google Gemini is selected, MarkItDown is *not* called with the Gemini LLM; 
-  instead, ezmd does a *custom* post-processing step, appended to the final Markdown.
-- Automatic collision handling: if a file exists, ezmd prompts for a new version 
-  or a custom filename, letting you cancel if needed.
-- WSL2 path support for Windows paths.
-
-## Installation
-
-1. Ensure you have [uv](https://github.com/astral-sh/uv) installed.
-2. Clone or download this project.
-3. `cd` into the project and run:
-   ```bash
-   uv tool install .
-   uv tool update-shell
-   ```
-4. You can now invoke `ezmd` from the shell.
-
-## Environment Variables in `.env`
-
-ezmd stores your API keys in `~/.config/ezmd/ezmd.env`.  
-Each time you run the tool, the environment is reloaded, so 
-your keys persist across new shells in the uv environment.
-
-For example:
-```
-EZMD_OPENAI_KEY=sk-...
-EZMD_GOOGLE_GEMINI_KEY=AIza...
-```
-
-## Usage
-
-1. **First Run**  
-   - If no configuration file exists (`~/.config/ezmd/config.json`), 
-     you'll see a setup wizard. Provide base paths, toggle providers, 
-     and optionally paste your LLM keys.
-
-2. **Converting a Document**  
-   - Run `ezmd` -> "1) Convert a Document".
-   - Provide a title and the source (URL or local path).
-   - Choose an LLM provider (OpenAI or Google Gemini). 
-     - If OpenAI, MarkItDown uses OpenAI for image analysis. 
-     - If Google Gemini, we skip MarkItDown’s built-in approach and do a custom `_do_gemini_processing` step appended at the end.
-   - If collisions occur, ezmd prompts for a new name or `c` to cancel.
-   - The `.md` file is saved in `~/context/` by default.
-
-3. **Configuration**  
-   - "2) Configuration" from the main menu lets you 
-     adjust paths, default providers, etc.
-
-4. **Exit**  
-   - Choose "3) Exit".
-
-## Development
-
-- You can develop and debug with VSCode or directly using:
-  ```bash
-  uv run python -m ezmd.main
-  ```
-- Logs appear in stdout.  
-- The environment variables are stored in `.env` at `~/.config/ezmd/ezmd.env`.
-
-## License
-
-This project is licensed under the MIT License. 
-
-----
 Full Path: ezmd/windows_path_utils.py
 
 """
@@ -504,12 +439,11 @@ def translate_windows_path_to_wsl(path: str) -> str:
 Full Path: ezmd/converter.py
 
 """
-Handles the actual process of:
-1) Determining final filenames with interactive collision resolution,
-2) Downloading/copying raw docs,
-3) Calling MarkItDown,
-4) Potentially doing a custom call for Google Gemini if the user selected that provider,
-5) Returning the path to the final .md file.
+Handles:
+1) Final filenames with collision resolution,
+2) Download/copy,
+3) MarkItDown usage with OpenAI if relevant,
+4) Returns the .md path.
 """
 
 import os
@@ -517,11 +451,17 @@ import re
 import shutil
 import requests
 import time
+from typing import Optional
 from urllib.parse import urlparse
-from .provider_manager import get_openai_key, get_google_gemini_key
+
+from .provider_manager import (
+    get_openai_key,
+    get_use_llm_img_desc,
+    get_img_desc_model,
+)
 from .config_manager import save_config
-# We still rely on MarkItDown, but only for openai usage.
 from markitdown import MarkItDown
+
 
 def convert_document(
     title: str,
@@ -532,11 +472,9 @@ def convert_document(
 ) -> str:
     """
     Convert the given source to markdown in base_context_dir 
-    using MarkItDown if openai is chosen for LLM usage, 
-    or skip LLM usage if google_gemini is chosen, 
-    followed by a custom gemini-based step if provider=google_gemini.
+    using MarkItDown if user picks "openai" and we have an OpenAI key + user-enabled LLM usage.
 
-    Returns the path to the final .md file.
+    Returns the final .md path.
     """
     base_context = os.path.expanduser(config.get("base_context_dir", "~/context"))
     raw_dir = os.path.join(base_context, "raw")
@@ -544,94 +482,70 @@ def convert_document(
 
     max_len = config.get("max_filename_length", 128)
 
-    # sanitize the title -> underscores
-    sanitized = re.sub(r"[^\w\s-]", "", title)  # remove weird chars
-    sanitized = re.sub(r"\s+", "_", sanitized.strip())  # convert spaces to underscores
-    # limit length
+    sanitized = re.sub(r"[^\w\s-]", "", title)
+    sanitized = re.sub(r"\s+", "_", sanitized.strip())
     if len(sanitized) > max_len:
         sanitized = sanitized[:max_len]
 
-    # Attempt to guess extension from source
-    ext = None
-    if source.startswith("http"):
-        parsed = urlparse(source)
-        path_part = parsed.path
-        _, extension = os.path.splitext(path_part)
-        if extension:
-            ext = extension
-        else:
-            ext = ".bin"
-    else:
-        _, extension = os.path.splitext(source)
-        if extension:
-            ext = extension
-        else:
-            ext = ".bin"
+    # guess extension from source
+    ext = _guess_extension(source)
+    raw_path = os.path.join(raw_dir, sanitized + ext)
+    md_path = os.path.join(base_context, sanitized + ".md")
 
-    if not ext:
-        ext = ".bin"
-
-    # Proposed raw path
-    raw_base = os.path.join(raw_dir, sanitized)
-    raw_path = raw_base + ext
-
-    # Proposed md path
-    out_path = os.path.join(base_context, sanitized + ".md")
-
-    # If we have collisions, do interactive approach
-    final_raw_path = _resolve_collision_path_interactive(raw_path, overwrite)
-    if final_raw_path is None:
-        # user canceled
+    final_raw = _resolve_collision_path_interactive(raw_path, overwrite)
+    if final_raw is None:
         raise Exception("User canceled the job due to collision in raw path.")
 
-    final_md_path = _resolve_collision_path_interactive(out_path, overwrite)
-    if final_md_path is None:
-        # user canceled
+    final_md = _resolve_collision_path_interactive(md_path, overwrite)
+    if final_md is None:
         raise Exception("User canceled the job due to collision in output md path.")
 
-    # If it's a URL, download
     if source.startswith("http"):
-        _download_file(source, final_raw_path)
+        _download_file(source, final_raw)
     else:
-        shutil.copy2(source, final_raw_path)
+        shutil.copy2(source, final_raw)
 
-    # MarkItDown usage
-    # If user picks openai, we pass an openai client
-    # If user picks google_gemini, we do no LLM usage here
+    # Decide whether to attach the LLM
     llm_client = None
     llm_model = None
-
     if provider == "openai":
-        import openai
-        key = get_openai_key()
-        if key:
-            openai.api_key = key
-            llm_client = openai
-            llm_model = config.get("providers", {}).get("openai", {}).get("default_model", "gpt-4")
+        from .provider_manager import get_openai_key
+        openai_key = get_openai_key()
+        if openai_key:
+            # only attach if user has "USE_LLM_IMG_DESC" = "true"
+            if get_use_llm_img_desc():
+                import openai
+                openai.api_key = openai_key
+                llm_client = openai
+                # read model from env or fallback
+                llm_model = get_img_desc_model()
+            else:
+                # user doesn't want image LLM usage
+                pass
 
-    # If google_gemini, skip the MarkItDown LLM usage and do a custom approach
-    # => We'll do normal MarkItDown with no llm client
-    md_instance = MarkItDown(
-        llm_client=llm_client,
-        llm_model=llm_model,
-    )
+    md_instance = MarkItDown(llm_client=llm_client, llm_model=llm_model)
+    result = md_instance.convert(final_raw)
 
-    result = md_instance.convert(final_raw_path)
-    with open(final_md_path, "w", encoding="utf-8") as f:
+    with open(final_md, "w", encoding="utf-8") as f:
         f.write(result.text_content)
 
-    # If user selected google_gemini, do a custom pass
-    # This is a placeholder: the user can define more advanced image or doc transformations
-    if provider == "google_gemini":
-        _do_gemini_processing(final_md_path, config)
+    return final_md
 
-    return final_md_path
+
+def _guess_extension(source: str) -> str:
+    parsed = None
+    if source.startswith("http"):
+        parsed = urlparse(source)
+        _, extension = os.path.splitext(parsed.path)
+        if extension:
+            return extension
+        return ".bin"
+    else:
+        _, extension = os.path.splitext(source)
+        return extension if extension else ".bin"
 
 
 def _download_file(url: str, dest: str) -> None:
-    """
-    Download the file from url and write to dest.
-    """
     r = requests.get(url, stream=True)
     r.raise_for_status()
     with open(dest, "wb") as f:
@@ -639,14 +553,10 @@ def _download_file(url: str, dest: str) -> None:
             f.write(chunk)
 
 
-def _resolve_collision_path_interactive(path: str, overwrite: bool) -> str or None:
+def _resolve_collision_path_interactive(path: str, overwrite: bool) -> Optional[str]:
     """
-    If overwrite=True, we can just use path. If it exists, we overwrite.
-    If overwrite=False, then if path exists, we propose <path>_v2, _v3, etc.
-    and ask user for confirmation or a custom name. 
-    The user can also type 'c' to cancel.
-
-    Returns the final chosen path, or None if user canceled.
+    If overwrite=True, return path, even if it exists.
+    If overwrite=False, check for collisions and propose a new path or let user rename.
     """
     if overwrite:
         return path
@@ -654,7 +564,6 @@ def _resolve_collision_path_interactive(path: str, overwrite: bool) -> str or No
     if not os.path.exists(path):
         return path
 
-    # If there's a collision, propose version increments
     base, ext = os.path.splitext(path)
     idx = 2
     while True:
@@ -670,51 +579,22 @@ def _resolve_collision_path_interactive(path: str, overwrite: bool) -> str or No
         if user_input.lower() == "c":
             return None
         elif user_input == "":
-            # user accepts proposed
             return proposed
         else:
-            # user typed a path
-            # check if that path also exists
             if os.path.exists(user_input):
                 print("[!] That path also exists, let's try again.")
                 continue
             return user_input
-
-
-def _do_gemini_processing(md_path: str, config: dict) -> None:
-    """
-    This is a placeholder for custom Gemini usage. 
-    If we want to do e.g. image annotation or advanced doc transformations, 
-    we can do so here, reading the .md file, applying transformations, 
-    and rewriting it.
-
-    # ASSUMPTION: We'll just append a note that "Gemini was used" for now.
-    """
-    from .provider_manager import get_google_gemini_key
-    gem_key = get_google_gemini_key()
-    if not gem_key:
-        return  # No key, can't do anything.
-
-    # In a real scenario, we might do something like:
-    #  from google import genai
-    #  client = genai.Client(api_key=gem_key, model="gemini-2.0-flash-exp")
-    #  ... do something with md_path ...
-    #
-    # For demonstration, we'll just append a line to the MD file:
-
-    try:
-        with open(md_path, "a", encoding="utf-8") as f:
-            f.write("\n\n---\n_Google Gemini custom processing step was invoked._\n")
-    except Exception as e:
-        print(f"[!] Gemini post-processing error: {e}")
 
 ----
 Full Path: ezmd/provider_manager.py
 
 """
 Manages environment variables for storing and retrieving
-OpenAI and Google Gemini keys. Also checks availability.
-Now persists these keys in ~/.config/ezmd/ezmd.env.
+OpenAI keys and usage toggles (e.g., use LLM for images).
+Now persists these in ~/.config/ezmd/ezmd.env.
+
+Removed references to google gemini.
 """
 
 import os
@@ -728,7 +608,7 @@ def _get_env_file_path() -> str:
     Return the path to the environment (.env) file used by ezmd.
     We'll store this as <config_dir>/ezmd.env
     """
-    cfg_path = get_config_path()  # e.g. ~/.config/ezmd/config.json
+    cfg_path = get_config_path()
     config_dir = os.path.dirname(cfg_path)
     return os.path.join(config_dir, "ezmd.env")
 
@@ -748,8 +628,6 @@ def _load_env_file() -> dict:
                 # skip blanks/comments
                 if not line or line.startswith("#"):
                     continue
-                # parse KEY=val
-                # naive parse
                 if "=" in line:
                     key, val = line.split("=", 1)
                     result[key.strip()] = val.strip()
@@ -765,8 +643,6 @@ def _save_env_file(envdict: dict) -> None:
     env_path = _get_env_file_path()
     lines = []
     for k, v in envdict.items():
-        # If v has spaces or special chars, user must handle quotes etc.
-        # We'll keep it simple and not do advanced quoting.
         lines.append(f"{k}={v}")
     try:
         with open(env_path, "w", encoding="utf-8") as f:
@@ -817,26 +693,44 @@ def get_openai_key() -> str:
     return os.environ.get("EZMD_OPENAI_KEY", "")
 
 
-def set_google_gemini_key(key: str) -> None:
+def set_use_llm_img_desc(use_llm: bool) -> None:
     """
-    Sets or clears the google gemini key in the environment and .env file.
+    If use_llm=True, set EZMD_USE_LLM_IMG_DESC='true'. Otherwise remove or set 'false'.
     """
     envdict = _load_env_file()
-
-    if key:
-        envdict["EZMD_GOOGLE_GEMINI_KEY"] = key
-        os.environ["EZMD_GOOGLE_GEMINI_KEY"] = key
+    if use_llm:
+        envdict["EZMD_USE_LLM_IMG_DESC"] = "true"
+        os.environ["EZMD_USE_LLM_IMG_DESC"] = "true"
     else:
-        if "EZMD_GOOGLE_GEMINI_KEY" in envdict:
-            del envdict["EZMD_GOOGLE_GEMINI_KEY"]
-        if "EZMD_GOOGLE_GEMINI_KEY" in os.environ:
-            del os.environ["EZMD_GOOGLE_GEMINI_KEY"]
-
+        # we can store "false" if we prefer
+        envdict["EZMD_USE_LLM_IMG_DESC"] = "false"
+        os.environ["EZMD_USE_LLM_IMG_DESC"] = "false"
     _save_env_file(envdict)
 
 
-def get_google_gemini_key() -> str:
-    return os.environ.get("EZMD_GOOGLE_GEMINI_KEY", "")
+def get_use_llm_img_desc() -> bool:
+    """
+    Returns True if EZMD_USE_LLM_IMG_DESC is 'true' (case-insensitive).
+    """
+    val = os.environ.get("EZMD_USE_LLM_IMG_DESC", "false").lower()
+    return val == "true"
+
+
+def set_img_desc_model(model: str) -> None:
+    """
+    Example models: 'gpt-4', 'gpt-4o', 'gpt-4o-mini', etc.
+    """
+    envdict = _load_env_file()
+    envdict["EZMD_IMG_DESC_MODEL"] = model
+    os.environ["EZMD_IMG_DESC_MODEL"] = model
+    _save_env_file(envdict)
+
+
+def get_img_desc_model() -> str:
+    """
+    If EZMD_IMG_DESC_MODEL is not set, fallback to 'gpt-4o-mini'.
+    """
+    return os.environ.get("EZMD_IMG_DESC_MODEL", "gpt-4o-mini")
 
 
 def is_openai_available(config: dict) -> bool:
@@ -851,19 +745,6 @@ def is_openai_available(config: dict) -> bool:
         return False
     return len(get_openai_key()) > 0
 
-
-def is_google_gemini_available(config: dict) -> bool:
-    """
-    Returns True if google gemini is enabled in config and we have a key in env.
-    """
-    if not config:
-        return False
-    providers = config.get("providers", {})
-    ginfo = providers.get("google_gemini", {})
-    if not ginfo.get("enabled", False):
-        return False
-    return len(get_google_gemini_key()) > 0
-
 ----
 Full Path: ezmd/__init__.py
 
@@ -874,28 +755,34 @@ Full Path: ezmd/__init__.py
 Full Path: ezmd/tui.py
 
 """
-Provides all the TUI (text user interface) flows for ezmd:
+Provides all the TUI flows for ezmd, including:
  - Main menu
  - Convert flow
  - Config menu
- - Provider sub-menu
- - NEW: Remote sync flows (remotes sub-menu) and post-conversion sync logic
+ - Providers sub-menu (OpenAI only)
+ - Manage Remotes sub-menu
 """
 
 import os
 import time
 import sys
 import subprocess
+from typing import Optional
+
 from .converter import convert_document
 from .config_manager import save_config, load_config
 from .provider_manager import (
     is_openai_available,
-    is_google_gemini_available,
     set_openai_key,
-    set_google_gemini_key,
+    get_openai_key,
+    set_use_llm_img_desc,
+    get_use_llm_img_desc,
+    set_img_desc_model,
+    get_img_desc_model,
 )
 from .windows_path_utils import is_windows_path, translate_windows_path_to_wsl
 from .rsync_manager import rsync_file, test_rsync_connection
+
 
 def main_menu(config: dict) -> None:
     """
@@ -925,55 +812,34 @@ def main_menu(config: dict) -> None:
 def convert_document_flow(config: dict) -> None:
     """
     Interactive flow for converting a document. 
-    Prompts user for title, source, provider, overwrite, etc.
-    Post-conversion, we handle remote sync logic.
+    Post-conversion, handle remote sync.
     """
     print("\n[Convert Document]\n")
     title = input("Enter Title: ").strip()
     source = input("Enter Source (URL or local path): ").strip()
 
-    # Determine available providers
-    available_providers = []
-    if is_openai_available(config):
-        available_providers.append("openai")
-    if is_google_gemini_available(config):
-        available_providers.append("google_gemini")
-
+    # Only openai (or None) from now on. 
+    # But let's keep code flexible if we re-add more providers.
     default_provider = config.get("default_provider", None)
-    if default_provider not in available_providers:
-        default_provider = None
+    provider: Optional[str] = None
 
-    print("\nAvailable LLM Providers:")
-    print(" (0) None (no LLM usage)")
-    for idx, prov in enumerate(available_providers, start=1):
-        mark = "(default)" if prov == default_provider else ""
-        print(f" ({idx}) {prov} {mark}")
+    if is_openai_available(config):
+        # default is openai if config says so
+        provider = default_provider if default_provider == "openai" else None
 
-    provider_choice = input("Choose LLM provider [Press Enter for default]: ").strip()
-    chosen_provider = None
-    if provider_choice == "":
-        chosen_provider = default_provider
-    else:
-        if provider_choice == "0":
-            chosen_provider = None
-        else:
-            try:
-                numeric = int(provider_choice)
-                if 1 <= numeric <= len(available_providers):
-                    chosen_provider = available_providers[numeric - 1]
-                else:
-                    print("[!] Invalid provider selection, ignoring.")
-                    chosen_provider = None
-            except ValueError:
-                print("[!] Invalid provider selection, ignoring.")
-                chosen_provider = None
+    # Ask user if they'd like to use an LLM
+    if provider is None:
+        # user has no default or not openai
+        # ask them if they'd like to enable openai for this job
+        if is_openai_available(config):
+            choice = input("Use OpenAI LLM for images? (y/N): ").strip().lower()
+            if choice.startswith("y"):
+                provider = "openai"
 
-    # Overwrite or interactive version approach
     force_overwrite_default = config.get("force_overwrite_default", False)
-    prompt = (
+    ow_input = input(
         f"Overwrite if file exists? (Y/n) [default={'Y' if force_overwrite_default else 'N'}]: "
-    )
-    ow_input = input(prompt).strip().lower()
+    ).strip().lower()
 
     if ow_input == "":
         overwrite = True if force_overwrite_default else False
@@ -982,11 +848,9 @@ def convert_document_flow(config: dict) -> None:
     else:
         overwrite = False
 
-    # local path check
     if not source.startswith("http"):
         if is_windows_path(source):
             source = translate_windows_path_to_wsl(source)
-
         if not os.path.exists(source):
             print(f"[!] Local file path does not exist: {source}")
             return
@@ -1016,7 +880,7 @@ def convert_document_flow(config: dict) -> None:
             title=title,
             source=source,
             config=config,
-            provider=chosen_provider,
+            provider=provider if provider else "",
             overwrite=overwrite,
         )
     except Exception as ex:
@@ -1029,23 +893,15 @@ def convert_document_flow(config: dict) -> None:
         print(f"[!] Error during conversion: {error_message}")
     else:
         print(f"[+] Output saved to {md_path}")
-        # Post-conversion, let's handle remote sync
         if md_path:
-            # In future, if multiple files, we might pass a list. For now, single-file approach.
             _handle_post_conversion_rsync(md_path, config)
 
 
 def _handle_post_conversion_rsync(md_path: str, config: dict):
-    """
-    This function:
-      1) Auto-syncs to all remotes with auto_sync=true
-      2) If there are other remotes, prompts the user to optionally sync to multiple
-    """
     remotes = config.get("remotes", {})
     if not remotes:
-        return  # No remotes configured
+        return
 
-    # 1) Auto-sync
     any_auto = False
     for alias, info in remotes.items():
         if info.get("auto_sync", False):
@@ -1053,40 +909,30 @@ def _handle_post_conversion_rsync(md_path: str, config: dict):
             success = rsync_file(md_path, info["ssh_host"], info["remote_dir"], timeout_sec=10)
             if not success:
                 print(f"[!] Warning: auto-sync to remote '{alias}' failed.")
-    # 2) Multi-select if user wants
-    # If there are no auto-sync or the user might want additional
-    # We'll ask "Would you like to sync to additional remote(s)?"
+
     if not any_auto:
-        # No auto-sync, so let's see if user wants to sync
         choice = input("Sync new .md file(s) to a remote? (y/N): ").strip().lower()
         if choice.startswith("y"):
-            # We'll do multi-select
             _choose_and_sync_remotes(md_path, remotes)
     else:
-        # Some auto-sync happened. Do we also want to let them sync to additional?
         choice = input("Sync to additional remote(s) as well? (y/N): ").strip().lower()
         if choice.startswith("y"):
             _choose_and_sync_remotes(md_path, remotes)
 
 
 def _choose_and_sync_remotes(md_path: str, remotes: dict):
-    """
-    Let the user pick multiple remote aliases from a list. 
-    Then for each chosen alias, do an rsync.
-    """
     if not remotes:
         return
     aliases = list(remotes.keys())
     print("\nAvailable remotes:")
     for idx, alias in enumerate(aliases, start=1):
-        print(f" ({idx}) {alias} -> {remotes[alias]['ssh_host']}:{remotes[alias]['remote_dir']}")
+        info = remotes[alias]
+        print(f" ({idx}) {alias} -> {info['ssh_host']}:{info['remote_dir']}")
 
-    print("\nEnter a comma-separated list of remotes to sync (e.g. '1,3') or blank to skip.")
-    sel = input("Selection: ").strip()
+    sel = input("\nEnter comma-separated list of remotes (e.g. '1,3') or blank to skip: ").strip()
     if not sel:
         return
 
-    # parse selection
     choices = []
     for part in sel.split(","):
         part = part.strip()
@@ -1097,7 +943,6 @@ def _choose_and_sync_remotes(md_path: str, remotes: dict):
         except:
             print(f"[!] Invalid selection: {part}")
 
-    # Now perform rsync for each
     for alias in choices:
         info = remotes[alias]
         success = rsync_file(md_path, info["ssh_host"], info["remote_dir"], timeout_sec=10)
@@ -1106,11 +951,6 @@ def _choose_and_sync_remotes(md_path: str, remotes: dict):
 
 
 def config_menu(config: dict) -> None:
-    """
-    Show the configuration menu. 
-    Allows editing base_context_dir, max_filename_length,
-    force_overwrite_default, default_provider, etc.
-    """
     while True:
         print("\n┌──────────────────────────────────┐")
         print("│ ezmd Configuration             │")
@@ -1132,7 +972,6 @@ def config_menu(config: dict) -> None:
             print(f"│   {pname} -> enabled: {en}")
         print("├──────────────────────────────────┤")
         print("│ Remotes:                       │")
-        # Show a quick summary of the user's configured remotes
         for alias, info in config.get("remotes", {}).items():
             ssh_host = info.get("ssh_host", "???")
             rdir = info.get("remote_dir", "???")
@@ -1164,8 +1003,8 @@ def config_menu(config: dict) -> None:
             save_config(config)
             print(f"force_overwrite_default is now {config['force_overwrite_default']}")
         elif choice == "d":
-            new_val = input("Enter default provider name (openai/google_gemini) or blank to disable default: ").strip()
-            if new_val in ["openai", "google_gemini"]:
+            new_val = input("Enter default provider name (openai) or blank to disable default: ").strip()
+            if new_val in ["openai"]:
                 config["default_provider"] = new_val
             else:
                 config["default_provider"] = None
@@ -1178,6 +1017,69 @@ def config_menu(config: dict) -> None:
             break
         else:
             print("[!] Invalid choice")
+
+
+def providers_submenu(config: dict) -> None:
+    """
+    Submenu to manage OpenAI configuration:
+      1) Toggle openai enable/disable in config
+      2) Edit openai key
+      3) Set default model (EZMD_IMG_DESC_MODEL)
+      4) Toggle "use LLM for images" (EZMD_USE_LLM_IMG_DESC)
+    """
+    provs = config.get("providers", {})
+    if "openai" not in provs:
+        provs["openai"] = {"enabled": False, "default_model": "gpt-4o-mini"}
+
+    while True:
+        print("\n┌──────────────────────────────────┐")
+        print("│ Manage Providers (OpenAI)      │")
+        print("├──────────────────────────────────┤")
+        openai_cfg = provs["openai"]
+        en = openai_cfg.get("enabled", False)
+        key = get_openai_key()
+        default_model = get_img_desc_model()  # from env
+        use_llm = get_use_llm_img_desc()
+
+        print(f"OpenAI -> enabled: {en}")
+        key_str = f"<Yes, starts with {key[:6]}...>" if key else "<No key>"
+        print(f"    Key in env: {key_str}")
+        print(f"    default_model (env): {default_model}")
+        print(f"    use LLM for images? {use_llm}")
+        print("├──────────────────────────────────┤")
+        print("1) Toggle openai enable/disable")
+        print("2) Edit openai key")
+        print("3) Select default model (gpt-4, gpt-4o, gpt-4o-mini...)")
+        print("4) Toggle LLM usage for images")
+        print("5) Return to config menu")
+        print("└──────────────────────────────────┘")
+
+        choice = input("Select an option: ").strip()
+        if choice == "1":
+            openai_cfg["enabled"] = not openai_cfg["enabled"]
+            provs["openai"] = openai_cfg
+            config["providers"] = provs
+            save_config(config)
+        elif choice == "2":
+            newkey = input("Enter new openai key (blank to remove): ").strip()
+            set_openai_key(newkey if newkey else "")
+        elif choice == "3":
+            newmodel = input("Enter new default model (e.g., gpt-4, gpt-4o, gpt-4o-mini): ").strip()
+            if not newmodel:
+                print("[!] Skipped.")
+            else:
+                set_img_desc_model(newmodel)
+        elif choice == "4":
+            # flip
+            current = get_use_llm_img_desc()
+            set_use_llm_img_desc(not current)
+        elif choice == "5":
+            break
+        else:
+            print("[!] Invalid choice")
+
+    config["providers"] = provs
+    save_config(config)
 
 
 def manage_remotes_menu(config: dict) -> None:
@@ -1199,8 +1101,7 @@ def manage_remotes_menu(config: dict) -> None:
                 print(f"   ALIAS: {alias}")
                 print(f"      ssh_host: {info.get('ssh_host','???')}")
                 print(f"      remote_dir: {info.get('remote_dir','???')}")
-                print(f"      auto_sync: {info.get('auto_sync',False)}")
-                print("")
+                print(f"      auto_sync: {info.get('auto_sync',False)}\n")
         else:
             print("  (No remotes configured)")
 
@@ -1226,10 +1127,6 @@ def manage_remotes_menu(config: dict) -> None:
 
 
 def _add_new_remote(remotes: dict):
-    """
-    Prompt the user for a new alias, ssh_host, remote_dir. 
-    Then attempt a test run. If success, optionally set auto_sync.
-    """
     alias = input("Enter alias (e.g. 'mylaptop'): ").strip()
     if not alias:
         print("[!] Alias is empty, aborting.")
@@ -1241,7 +1138,6 @@ def _add_new_remote(remotes: dict):
     ssh_host = input("ssh_host (e.g. user@myhost): ").strip()
     remote_dir = input("remote_dir (default=~): ").strip() or "~"
 
-    # Test the connection
     print("\nTesting rsync connection with a dummy file (dry-run)...")
     success = test_rsync_connection(ssh_host, remote_dir, timeout_sec=10)
     if not success:
@@ -1250,11 +1146,11 @@ def _add_new_remote(remotes: dict):
         if not choice.startswith("y"):
             return
 
-    # auto_sync
+    auto_sync = False
     ask_sync = input("Enable auto_sync for this remote by default? (y/N): ").strip().lower()
-    auto_sync = True if ask_sync.startswith("y") else False
+    if ask_sync.startswith("y"):
+        auto_sync = True
 
-    # Save
     remotes[alias] = {
         "ssh_host": ssh_host,
         "remote_dir": remote_dir,
@@ -1264,9 +1160,6 @@ def _add_new_remote(remotes: dict):
 
 
 def _edit_remote(remotes: dict, config: dict):
-    """
-    Let user pick a remote alias to edit. Then let them update fields, re-test, etc.
-    """
     if not remotes:
         print("[!] No remotes to edit.")
         return
@@ -1277,8 +1170,8 @@ def _edit_remote(remotes: dict, config: dict):
 
     choice = input("Selection: ").strip()
     try:
-        idx = int(choice)
-        alias = aliases[idx-1]
+        i = int(choice)
+        alias = aliases[i-1]
     except:
         print("[!] Invalid choice.")
         return
@@ -1294,7 +1187,6 @@ def _edit_remote(remotes: dict, config: dict):
     if new_dir:
         info["remote_dir"] = new_dir
 
-    # test
     test_choice = input("Test connection again? (y/N): ").strip().lower()
     if test_choice.startswith("y"):
         success = test_rsync_connection(info["ssh_host"], info["remote_dir"], timeout_sec=10)
@@ -1303,7 +1195,6 @@ def _edit_remote(remotes: dict, config: dict):
         else:
             print("[!] Test failed. You can proceed, but it might not work in practice.")
 
-    # auto_sync
     ask_sync = input(f"auto_sync? [current={info.get('auto_sync',False)}] (y=enable / n=disable / Enter=skip): ").strip().lower()
     if ask_sync == "y":
         info["auto_sync"] = True
@@ -1311,15 +1202,11 @@ def _edit_remote(remotes: dict, config: dict):
         info["auto_sync"] = False
 
     remotes[alias] = info
-    print("[+] Remote updated.")
-    # We don't strictly need to do config object merges, but let's do it
     config["remotes"] = remotes
+    print("[+] Remote updated.")
 
 
 def _remove_remote(remotes: dict, config: dict):
-    """
-    Pick an alias to remove from the dictionary.
-    """
     if not remotes:
         print("[!] No remotes to remove.")
         return
@@ -1330,8 +1217,8 @@ def _remove_remote(remotes: dict, config: dict):
 
     choice = input("Selection: ").strip()
     try:
-        idx = int(choice)
-        alias = aliases[idx-1]
+        i = int(choice)
+        alias = aliases[i-1]
     except:
         print("[!] Invalid choice.")
         return

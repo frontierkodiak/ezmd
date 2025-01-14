@@ -1,0 +1,189 @@
+<observations>
+- Prompt user to configure remotes on first run
+- Allow user to go back to main menu from any submenu (e.g. I realized I was adding the incorrect remote, had to ctrl-c out of the add remote menu)
+- Elegant handle of ctrl-c (just print 'exiting...' instead of a traceback)
+- When user converts from arxiv URL, user should be able to provide any of the following as source:
+  - abstract url (e.g. http://arxiv.org/abs/2306.02564)
+  - pdf url (e.g. https://arxiv.org/pdf/2306.02564)
+  - arxiv id (e.g. 2306.02564)
+  - For all the above, need to convert to the pdf url, and then save the download with .pdf extension
+- Some TUI formatting issues, e.g. Remotes list is not bounded in the box:
+```
+┌──────────────────────────────────┐
+│ Manage Remotes                 │
+├──────────────────────────────────┤
+   ALIAS: mba
+      ssh_host: caleb@mba
+      remote_dir: /Users/caleb/local/context
+      auto_sync: True
+
+├──────────────────────────────────┤
+│ 1) Add Remote                   │
+│ 2) Edit Remote                  │
+│ 3) Remove Remote                │
+│ 4) Return...                    │
+└──────────────────────────────────┘
+```
+</observations>
+
+(ezmd) caleb@blade:~/repo/ezmd$ ezmd
+
+[No configuration found. Let's do initial setup.]
+
+base_context_dir [default=~/context]: 
+max_filename_length [default=128]: 
+force_overwrite_default (Y/n) [default=n]: 
+Enable openai provider? (Y/n): Y
+Enable google_gemini provider? (Y/n): n
+Default provider (openai/google_gemini/none)? [none]: openai
+Setup complete! We'll store this config now.
+
+
+┌────────────────────────────────┐
+│ ezmd - Easy Markdown Tool     │
+├────────────────────────────────┤
+│ 1) Convert a Document         │
+│ 2) Configuration              │
+│ 3) Exit                       │
+└────────────────────────────────┘
+Select an option: 1
+
+[Convert Document]
+
+Enter Title: sinr_paper
+Enter Source (URL or local path): https://arxiv.org/pdf/2306.02564
+Overwrite if file exists? (Y/n) [default=N]: 
+
+[Converting... please wait]
+[✔ Conversion Complete]     
+[+] Output saved to /home/caleb/context/sinr_paper.md
+
+┌────────────────────────────────┐
+│ ezmd - Easy Markdown Tool     │
+├────────────────────────────────┤
+│ 1) Convert a Document         │
+│ 2) Configuration              │
+│ 3) Exit                       │
+└────────────────────────────────┘
+Select an option: 2
+
+┌──────────────────────────────────┐
+│ ezmd Configuration             │
+├──────────────────────────────────┤
+│ base_context_dir: ~/context
+│ max_filename_length: 128
+│ force_overwrite_default: False
+│ default_provider: openai
+├──────────────────────────────────┤
+│ Providers:                     │
+│   openai -> enabled: True
+│   google_gemini -> enabled: False
+├──────────────────────────────────┤
+│ Remotes:                       │
+├──────────────────────────────────┤
+│ a) Edit base_context_dir        │
+│ b) Edit max_filename_length     │
+│ c) Toggle force_overwrite       │
+│ d) Edit default_provider        │
+│ e) Manage providers...          │
+│ r) Manage remotes...            │
+│ f) Return to main menu          │
+└──────────────────────────────────┘
+Select an option: r
+
+┌──────────────────────────────────┐
+│ Manage Remotes                 │
+├──────────────────────────────────┤
+  (No remotes configured)
+├──────────────────────────────────┤
+│ 1) Add Remote                   │
+│ 2) Edit Remote                  │
+│ 3) Remove Remote                │
+│ 4) Return...                    │
+└──────────────────────────────────┘
+Select an option: 1
+Enter alias (e.g. 'mylaptop'): wsl
+ssh_host (e.g. user@myhost): caleb@^CTraceback (most recent call last):
+  File "/home/caleb/.local/bin/ezmd", line 8, in <module>
+    sys.exit(entry_point())
+  File "/home/caleb/.local/share/uv/tools/ezmd/lib/python3.10/site-packages/ezmd/main.py", line 30, in entry_point
+    main_menu(config)
+  File "/home/caleb/.local/share/uv/tools/ezmd/lib/python3.10/site-packages/ezmd/tui.py", line 48, in main_menu
+    config_menu(config)
+  File "/home/caleb/.local/share/uv/tools/ezmd/lib/python3.10/site-packages/ezmd/tui.py", line 259, in config_menu
+    manage_remotes_menu(config)
+  File "/home/caleb/.local/share/uv/tools/ezmd/lib/python3.10/site-packages/ezmd/tui.py", line 361, in manage_remotes_menu
+    _add_new_remote(remotes)
+  File "/home/caleb/.local/share/uv/tools/ezmd/lib/python3.10/site-packages/ezmd/tui.py", line 382, in _add_new_remote
+    ssh_host = input("ssh_host (e.g. user@myhost): ").strip()
+KeyboardInterrupt
+
+(ezmd) caleb@blade:~/repo/ezmd$ ezmd
+
+┌────────────────────────────────┐
+│ ezmd - Easy Markdown Tool     │
+├────────────────────────────────┤
+│ 1) Convert a Document         │
+│ 2) Configuration              │
+│ 3) Exit                       │
+└────────────────────────────────┘
+Select an option: 2
+
+┌──────────────────────────────────┐
+│ ezmd Configuration             │
+├──────────────────────────────────┤
+│ base_context_dir: ~/context
+│ max_filename_length: 128
+│ force_overwrite_default: False
+│ default_provider: openai
+├──────────────────────────────────┤
+│ Providers:                     │
+│   openai -> enabled: True
+│   google_gemini -> enabled: False
+├──────────────────────────────────┤
+│ Remotes:                       │
+├──────────────────────────────────┤
+│ a) Edit base_context_dir        │
+│ b) Edit max_filename_length     │
+│ c) Toggle force_overwrite       │
+│ d) Edit default_provider        │
+│ e) Manage providers...          │
+│ r) Manage remotes...            │
+│ f) Return to main menu          │
+└──────────────────────────────────┘
+Select an option: r
+
+┌──────────────────────────────────┐
+│ Manage Remotes                 │
+├──────────────────────────────────┤
+  (No remotes configured)
+├──────────────────────────────────┤
+│ 1) Add Remote                   │
+│ 2) Edit Remote                  │
+│ 3) Remove Remote                │
+│ 4) Return...                    │
+└──────────────────────────────────┘
+Select an option: 1
+Enter alias (e.g. 'mylaptop'): mba
+ssh_host (e.g. user@myhost): caleb@mba
+remote_dir (default=~): /Users/caleb/local/context
+
+Testing rsync connection with a dummy file (dry-run)...
+Enable auto_sync for this remote by default? (y/N): y
+[+] Remote 'mba' added.
+
+┌──────────────────────────────────┐
+│ Manage Remotes                 │
+├──────────────────────────────────┤
+   ALIAS: mba
+      ssh_host: caleb@mba
+      remote_dir: /Users/caleb/local/context
+      auto_sync: True
+
+├──────────────────────────────────┤
+│ 1) Add Remote                   │
+│ 2) Edit Remote                  │
+│ 3) Remove Remote                │
+│ 4) Return...                    │
+└──────────────────────────────────┘
+Select an option: 

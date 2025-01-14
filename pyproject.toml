@@ -9,3 +9,6 @@ dependencies = [
     "markitdown>=0.0.1a3",
     "textual>=1.0.0",
 ]
+
+[project.scripts]
+ezmd = "ezmd.main:entry_point"

@@ -1,0 +1,706 @@
+<observations>
+- We provided URL to arxiv paper, but the downloaded paper was saved to context/raw dir with weird extension: `sinr_paper.02564`, should be `sinr_paper.pdf`
+- Doesn't seem like images were transcribed to md descriptions properly. I see no evidence in API dashboard that any calls were made. We see a lot of weird artifacts where we might expect image descriptions.
+- There might be underlying issues with markitdown, but we should check if MarkItDown was initialized with the OpenAI provider object correctly. I wonder if there would have been any differnece in conversion output if the downloaded file were saved with .pdf extension? It seems like MarkItDown detected that it was PDF, but there are numerous parsing issues.
+</observations>
+<conversion_tui_usage>
+┌────────────────────────────────┐
+│ ezmd - Easy Markdown Tool     │
+├────────────────────────────────┤
+│ 1) Convert a Document         │
+│ 2) Configuration              │
+│ 3) Exit                       │
+└────────────────────────────────┘
+Select an option: 1
+
+[Convert Document]
+
+Enter Title: sinr_paper
+Enter Source (URL or local path): https://arxiv.org/pdf/2306.02564
+Overwrite if file exists? (Y/n) [default=N]: 
+
+[Converting... please wait]
+[✔ Conversion Complete]     
+[+] Output saved to /home/caleb/context/sinr_paper.md
+</conversion_tui_usage>
+<sample_output>
+<sinr_paper.md>
+4.1. Models
+
+As described in Section 3.1, our SINR models consist of a
+location encoder fθ and a multi-label classifier hϕ which
+produce a vector of predictions ˆy = hϕ(fθ(x)) for a loca-
+tion x. The location encoder fθ is implemented as the fully
+connected neural network shown in Figure A3. We imple-
+ment the multi-label classifier hϕ as a single fully connected
+
+4
+
+????????????+---------????--++----+++-++data locationrandom locationunobserved ground truthtargets atdata locationtargets atrandom locationSpatial Implicit Neural Representations for Global-Scale Species Mapping
+
+Figure 3. Visualization of the 256-dimensional features from learned location encoders fθ projected to three dimensions using Independent
+Component Analysis (ICA). All models use the LAN−full loss and take coordinates as input. (Left) This corresponds to a SINR model
+trained with a maximum of 10 examples per class. The features are smooth and do not appear to encode much high frequency spatial
+information. (Right) In contrast, the SINR model trained with a maximum of 1000 examples per class contains more high frequency
+information. The increase in training data appears to enable this model to better encode spatially varying environmental properties. Note,
+ICA is performed independently per-model, so similar colors do not indicate correspondence between the two images.
+
+layer with sigmoid activations. For fair companions, we
+follow a similar architecture to Mac Aodha et al. (2019).
+Full implementation details can be found in Appendix C.
+
+Besides SINR, we study two other model types. The first
+is logistic regression (Pearce & Ferrier, 2000), in which the
+location encoder fθ is replaced with the identity function
+and hϕ is unchanged. Logistic regression is commonly used
+for SDM in the ecology literature. It also has the virtue of
+being highly scalable since it can be trained using GPU-
+accelerated batch-based optimization. The second type of
+non-SINR model is the discretized grid model. These mod-
+els do not use a location encoder at all, but instead make
+predictions based on binning the training data (Berg et al.,
+2014). Full details for these models can be found in Ap-
+pendix C. These baselines allow us to quantify the impor-
+tance of the deep location encoder in our SINR models.
+
+4.2. Training Data
+
+We train our models on presence-only species observation
+data obtained from the community science platform iNat-
+uralist (iNa). The training set consists of 35.5 million ob-
+servations covering 47,375 species observed prior to 2022.
+Each species observation includes the geographical coor-
+dinate where the species was observed. We only included
+species in the training set if they had at least 50 observations.
+Some species are far more common than others, and thus
+the dataset is heavily imbalanced (see Figure A5). Later
+we use this data in its entirety during training (“All”), with
+different maximum observations per class (“X / Class”), or
+with different subsets of classes. See Appendix D for more
+details on the training dataset.
+
+4.3. Evaluation Tasks and Metrics
+
+We propose four tasks for evaluating large-scale species
+range estimation models. We give brief descriptions here,
+and provide further details in Appendix E.
+
+S&T: eBird Status and Trends. This task quantifies
+the agreement between our presence-only predictions and
+expert-derived range maps from the eBird Status & Trends
+dataset (Fink et al., 2020), covering 535 bird species with a
+focus on North America. The spatial extent of this task is vi-
+sualized in Figure A6. Performance is measured using mean
+average precision (MAP), i.e. computing the per-species
+average precision (AP) and averaging across species.
+
+IUCN: Expert Range Maps. This task compares our pre-
+dictions against expert range maps from the International
+Union for Conservation of Nature (IUCN) Red List (IUC).
+Unlike the bird-centric S&T, this task covers 2,418 species
+from different taxonomic groups, including birds, from all
+over the world. The spatial extent of this task is visualized
+in Figure A6. Performance is measured using MAP.
+
+Geo Prior: Geographical Priors for Image Classification.
+This task measures the utility of our range maps as pri-
+ors for fine-grained image classification (Berg et al., 2014;
+Mac Aodha et al., 2019). As illustrated in Figure 1, we com-
+bine the output of an image classifier with a range estimation
+model and measure the improvement in classification ac-
+curacy. The intuition is that an accurate range model can
+downweight the probability of a species if it is not typically
+found at the location where the image was taken. For this
+task we collect 282,974 images from iNaturalist, covering
+39,444 species from our training set. Each image is accom-
+panied by the latitude and longitude at which the image was
+taken. The performance metric for this task (“∆ Top-1”) is
+the change in image classifier top-1 accuracy when using
+our range predictions as a geographical prior. Note that the
+geographical prior is applied to the classifier at test time –
+the image classifier is not trained with any geographical in-
+formation. A positive value indicates that the prior improves
+classifier performance. Unlike S&T and IUCN, this is an
+indirect evaluation of range map quality since we assess
+how useful the range predictions are for a downstream task.
+
+5
+
+Spatial Implicit Neural Representations for Global-Scale Species Mapping
+
+Table 1. Results for four geospatial tasks: S&T (eBird Status & Trends species mapping), IUCN (IUCN species mapping), Geo Prior
+(fine-grained image classification with a geographical prior), and Geo Feature (geographical feature regression). Tasks and metrics are
+defined in Section 4.3.We assess performance as a function of the loss function and the amount of training data (“# / Class”). Model
+inputs may be coordinates (“Coords.”), environmental features (“Env.”) or both (“Env. + Coords.”). The logistic regression (“LR”) and
+“Best Discretized Grid” baselines do not have an entry for the Geo Feature task as they do not learn a location encoder. We also do not
+evaluate models tagged with “Env.” on the Geo Feature task because they are trained on closely related environmental features. Higher
+values are better for all tasks.
+
+Loss
+Baselines:
+N/A
+LAN−full
+LAN−full
+LAN−full
+LME−SSDL (Zhou et al., 2022)
+LME−SLDS (Zhou et al., 2022)
+LME−full (Zhou et al., 2022)
+LGP (Mac Aodha et al., 2019)
+
+LAN−SSDL
+LAN−SSDL
+LAN−SSDL
+LAN−SSDL
+LAN−SLDS
+LAN−SLDS
+LAN−SLDS
+LAN−SLDS
+LAN−full
+LAN−full
+LAN−full
+LAN−full
+LAN−full
+LAN−full
+LAN−full
+LAN−full
+LAN−full
+LAN−full
+LAN−full
+LAN−full
+
+Model Type
+
+# / Class
+
+S&T
+(MAP)
+
+IUCN Geo Prior Geo Feature
+(Mean R2)
+(MAP)
+
+(∆ Top-1)
+
+Best Discretized Grid (Berg et al., 2014)
+LR (Pearce & Ferrier, 2000) - Coords.
+LR (Pearce & Ferrier, 2000) - Env.
+LR (Pearce & Ferrier, 2000) - Env. + Coords.
+SINR - Coords.
+SINR - Coords.
+SINR - Coords.
+SINR - Coords.
+
+SINR - Coords.
+SINR - Coords.
+SINR - Coords.
+SINR - Coords.
+SINR - Coords.
+SINR - Coords.
+SINR - Coords.
+SINR - Coords.
+SINR - Coords.
+SINR - Coords.
+SINR - Coords.
+SINR - Coords.
+SINR - Env.
+SINR - Env.
+SINR - Env.
+SINR - Env.
+SINR - Env. + Coords.
+SINR - Env. + Coords.
+SINR - Env. + Coords.
+SINR - Env. + Coords.
+
+All
+1000
+1000
+1000
+1000
+1000
+1000
+1000
+
+10
+100
+1000
+All
+10
+100
+1000
+All
+10
+100
+1000
+All
+10
+100
+1000
+All
+10
+100
+1000
+All
+
+61.56
+26.41
+32.91
+35.42
+62.74
+74.37
+73.61
+73.14
+
+51.12
+63.98
+66.99
+68.36
+63.73
+72.18
+76.19
+75.78
+65.36
+72.82
+77.15
+77.94
+60.10
+74.54
+79.65
+80.54
+67.12
+76.88
+80.48
+81.39
+
+37.13
+0.93
+1.23
+1.11
+42.55
+32.22
+58.60
+59.51
+
+27.63
+47.42
+53.47
+55.75
+27.14
+38.40
+42.26
+41.11
+49.02
+62.00
+65.84
+65.59
+41.68
+66.64
+70.54
+69.25
+62.99
+74.49
+76.07
+74.67
+
++4.1
+-0.6
+-5.6
+-3.9
++1.6
++2.1
++1.5
++5.2
+
++3.4
++4.7
++4.9
++4.8
++4.6
++6.1
++6.2
++6.1
++4.3
++6.6
++6.1
++5.0
++3.8
++6.7
++6.4
++5.3
++4.7
++6.8
++6.5
++5.5
+
+-
+-
+-
+-
+0.726
+0.734
+0.749
+0.724
+
+0.631
+0.721
+0.744
+0.739
+0.693
+0.731
+0.739
+0.748
+0.712
+0.736
+0.755
+0.759
+-
+-
+-
+-
+-
+-
+-
+-
+
+Geo Feature: Environmental Representation Learning.
+Instead of evaluating the species predictions, this transfer
+learning task evaluates the quality of the underlying geospa-
+tial representation learned by a SINR. The task is to predict
+nine different geospatial characteristics of the environment,
+e.g. above-ground carbon, elevation, etc. First, we use the
+location encoder fθ to extract features for a grid of evenly
+spaced locations across the contiguous United States. After
+splitting the locations into train and test data, we use ridge
+regression to predict the geospatial characteristics from the
+extracted features. Performance is evaluated using the coef-
+ficient of determination R2 on the test set, averaged across
+the nine geospatial characteristics.
+
+4.4. Results
+
+Which loss is best? No loss is best in every setting we con-
+sider. However, some losses do tend to perform better than
+others. In Table 1 we observe that, when we control for input
+
+type and the amount of training data, LAN−full outperforms
+LAN−SSDL and LAN−SLDS most of the time. LAN−full has
+a decisive advantage on the S&T and IUCN tasks and a con-
+sistent but small advantage on the Geo Feature task. Both
+LAN−full and LAN−SLDS perform well on the Geo Prior
+task, significantly outperforming LAN−SSDL. We note that
+LAN−full is a simplified version of LGP from Mac Aodha
+et al. (2019), but LAN−full outperforms LGP on every task.
+
+Pseudo-negatives that follow the data distribution are
+usually better. LAN−SSDL and LAN−SLDS differ only in
+the fact that LAN−SSDL samples pseudo-negatives from ran-
+dom locations while LAN−SLDS samples pseudo-negatives
+from data locations (see Figure 2).
+In Table 1 we see
+that LAN−SLDS outperforms LAN−SSDL for all tasks except
+IUCN. This could be due to the fact that some IUCN species
+have ranges far from areas that are well-sampled by iNatu-
+ralist. As we can see in Figure A2 (Black Oystercatcher),
+LAN−SSDL can behave poorly in areas with little training
+
+6
+
+Spatial Implicit Neural Representations for Global-Scale Species Mapping
+
+Figure 4. Results for the S&T and IUCN tasks. All models are
+trained with 1000 examples per class using the LAN−full loss. We
+compare logistic regression (“LR”) models against SINR models,
+using either coordinates (C), environmental covariates (E), or both
+(C+E) as inputs. These values can also be found in Table 1.
+
+data. This highlights the importance of using diverse tasks
+to study range estimation methods.
+
+Implicit neural representations significantly improve per-
+formance. We can assess the impact of the deep location
+encoder by comparing SINR and LR in models Table 1. For
+instance, if we use the LAN−full loss with 1000 examples
+per class and coordinates as input, SINR outperforms LR by
+over 50 MAP on the S&T task. Both methods use the same
+inputs and training loss – the only difference is that SINR
+uses a deep location encoder while LR does not. Figure 4
+shows that same pattern holds whether we use coordinates,
+environmental features, or both as inputs. For each input
+type, a deep location encoder provides significant benefits.
+
+Environmental features are not necessary for good per-
+formance. In Figure 4 we show the S&T and IUCN per-
+formance of different models trained with coordinates only,
+environmental features only, or both. We see that SINR mod-
+els trained with coordinates perform nearly as well as SINR
+models trained with environmental features. For the SINR
+models in Figure 4, coordinates are 97% as good as environ-
+mental features for the S&T task, 93% as good for the IUCN
+task, and 95% as good for the Geo Prior task. This suggests
+that SINRs can successfully use sparse presence-only data
+to learn about the environment, so that using environmental
+features as input provides only a marginal benefit.
+
+Coordinates and environmental features are complemen-
+tary. Figure 4 shows that it is better to use the concatenation
+of coordinates and environmental features than it is to use
+either coordinates or environmental features alone. This is
+true for LR and SINR. This indicates that the coordinates
+and environmental features are carrying some complemen-
+tary information. However, as we discuss in Appendix B.2,
+environmental features introduce an additional layer of com-
+plexity compared to models that use only coordinates.
+
+Joint learning across categories is beneficial, but more
+data is better. In Figure 5 we study the effect of the amount
+of training data on performance for the S&T task. We first
+note that, unsurprisingly, increasing the number of training
+examples per species reliably and significantly improves
+
+7
+
+Figure 5. S&T task performance with LAN−full as a function of
+the number of training examples per class (i.e. species) and number
+of classes. The horizontal axis gives the set of species used for
+training. “S&T” indicates that we only train on the 535 species
+in the S&T task. For “S&T + X” we add in X species chosen
+uniformly at random. For “All” we train on all 47k species. Note
+that the “10 / Class” point for “S&T” is trained with a higher
+learning rate than usual (5e − 3 instead of 5e − 4) due to the small
+number of training examples per epoch. The values for “All” are
+also present in Table 1. All models use coordinates as input.
+
+performance. One possible mechanism for this is suggested
+by Figure 3, which shows a more spatially detailed represen-
+tation emerging with more training data. More interestingly,
+Figure 5 also shows that adding training data for additional
+species (which are not evaluated at test time) improves per-
+formance as well. That is, the model can better predict the
+distributions of the S&T birds by also learning the distribu-
+tions of other birds, plants, insects, etc. Intuitively, it seems
+reasonable that training on more species could lead to a
+richer and more useful geospatial representation. However,
+the direct benefit of additional training data for the species
+of interest is far larger. If we were given a fixed budget of
+training examples to allocate among species as we wished,
+we should prefer to have a larger number of training ex-
+amples per species (instead of fewer training examples per
+species, but spread across a greater number of species).
+
+Low-shot performance is surprisingly good. In Table 1 we
+see that a SINR trained with LAN−full and only 10 examples
+per category (i.e. ∼1% of the training data) beats the “Best
+Discretized Grid” baseline (which uses all of the training
+data) on every task. SINRs seem to be capable of capturing
+general spatial patterns using relatively little data. While
+this is encouraging, we expect that more data is necessary
+to capture fine detail as suggested by Figure 3 and Figure 7.
+
+How are our tasks related? In this work we study four
+spatial prediction tasks. This tasks differ in their spatial do-
+mains, evaluation metrics, and categories of interest, but it is
+reasonable to wonder to what extent they may be related. In
+Figure 6 we show the pairwise correlations between scores
+on our tasks. Some tasks are highly correlated (e.g. S&T
+and Geo Features, 0.92) while others are not (e.g. IUCN
+and Geo Prior, 0.39).
+
+LR(C)LR(E)LR(C+E)SINR(C)SINR(E)SINR(C+E)Method020406080MAPS&TIUCNS&TS&T+4kS&T+8kS&T+16kS&T+24kAllTraining Species657075MAP10 / Class100 / Class1000 / ClassSpatial Implicit Neural Representations for Global-Scale Species Mapping
+
+4.5. Limitations
+It is important to be aware of the limitations associated
+with our analysis. As noted, the training set is heavily
+imbalanced, both in terms of the species themselves and
+where the data was collected. In practice, some of the most
+biodiverse regions are underrepresented. This is partially
+because some species are more common and thus more
+likely to be observed than others by iNaturalist users. We
+do not explicitly deal with species imbalance in the training
+data, other than by showing that the ranking of methods
+does not significantly vary even when the training data for
+each species is capped to the same upper limit (see Table 1).
+
+Reliably evaluating the performance of SDMs for many
+species and locations is a long standing challenge. To ad-
+dress this issue, we present a suite of complementary bench-
+marks that attempt to evaluate different facets of this spatial
+prediction problem. However, obtaining ground truth range
+data for thousands of species remains very difficult. While
+we believe our benchmarks to be a significant step forward,
+they are likely to have blind spots, e.g. they are limited to
+well-described species and can contain inaccuracies.
+
+Finally, care should be taken before making conservation
+decisions based on the outputs of models such as the ones
+presented here. Our goal in this work is to demonstrate the
+promise of large-scale representation learning for species
+distribution modeling. Our models have not been calibrated
+or validated beyond the experiments illustrated above.
+
+5. Conclusion
+
+We explored the problem of species range mapping through
+the lens of learning spatial implicit neural representations
+(SINRs). In doing so, we connected recent work on im-
+plicit coordinate networks and learning multi-label classi-
+fiers from limited supervision. We hope our contributions
+encourage more machine learning researchers to work on
+this important problem. While the initial results are encour-
+aging, there are many avenues for future work. For example,
+our models make no use of time (Mac Aodha et al., 2019),
+do not account for spatial bias (Chen & Gomes, 2019), and
+have no inductive biases for encoding spatially varying sig-
+nals (Ramasinghe & Lucey, 2022).
+
+Acknowledgments. We thank the iNaturalist and eBird
+communities for their data collection efforts, as well as Matt
+Stimas-Mackey and Sam Heinrich for help with data cu-
+ration. This project was funded by the Climate Change
+AI Innovation Grants program, hosted by Climate Change
+AI with the support of the Quadrature Climate Foundation,
+Schmidt Futures, and the Canada Hub of Future Earth. This
+work was also supported by the Caltech Resnick Sustain-
+ability Institute and an NSF Graduate Research Fellowship
+(grant number DGE1745301).
+
+Figure 6. Performance correlations across our four tasks: S&T,
+IUCN, Geo Prior (GP), and Geo Feature (GF). Values are Pearson
+product-moment correlation coefficients. The correlations are
+computed across 12 SINR models: LAN−SSDL, LAN−SLDS, and
+LAN−full for 10, 100, 1000, and All training examples per class.
+All models use coordinates as input.
+
+Imbalance hurts performance, but not too much.
+In
+Table 1 we notice that a SINR trained with all of the training
+data often performs worse than a SINR trained on up to 1000
+examples per class. This pattern is clearest for the IUCN and
+Geo Prior tasks. Capping the number of training examples
+per class reduces the amount of training data, but it also
+reduces class imbalance in the training set (some categories
+have as many as ∼ 105 training examples). It seems that the
+benefit of reducing class imbalance outweighs the benefit
+of additional training data in these cases. However, it is
+important to keep in mind that the performance drops we
+are discussing are small. For instance, for a SINR trained
+with LAN−full and coordinates as input, switching from
+1000 training examples to all of the training data changes
+performance by -0.79 MAP for the S&T task, -0.25 MAP
+for the IUCN task, -1.1 ∆ Top-1 for the Geo Prior task,
+and +0.004 for the Geo Feature task. Given the extreme
+imbalance in the training set and the fact that we do not
+explicitly handle class imbalance during training, it may be
+surprising that the performance drops are not larger.
+
+Loss function rankings may not generalize across do-
+mains. The presence-only SDM problem in this work and
+the single positive image classification problem in Cole et al.
+(2021) are both SPML problems. Despite this formal equiv-
+alence, it does not seem that the best methods for SPML
+image classification are also the best methods for presence-
+only SDM. Zhou et al. (2022) show that their “maximum
+entropy” loss performs much better than the “assume nega-
+tive” loss across a number of image classification datasets.
+However, all of the “maximum entropy” losses in Table 1
+(LME−SSDL, LME−SLDS, LME−full) underperform their
+“assume negative” counterparts (LAN−SSDL, LAN−SLDS,
+LAN−full). Thus, the benchmarks in this paper are comple-
+mentary to those in Cole et al. (2021) and may be useful in
+developing a more holistic understanding of SPML learning.
+
+8
+
+S&TIUCNGPGFS&TIUCNGPGF10.620.840.920.6210.390.740.840.3910.710.920.740.7110.40.50.60.70.80.91.0Spatial Implicit Neural Representations for Global-Scale Species Mapping
+
+LAN−SSDL
+
+LAN−SLDS
+
+LAN−full
+
+s
+s
+a
+l
+C
+
+/
+
+s
+e
+v
+i
+t
+i
+s
+o
+P
+0
+1
+
+s
+s
+a
+l
+C
+
+/
+
+s
+e
+v
+i
+t
+i
+s
+o
+P
+0
+0
+1
+
+s
+s
+a
+l
+C
+
+/
+
+s
+e
+v
+i
+t
+i
+s
+o
+P
+0
+0
+0
+1
+
+Figure 7. Visualization of SINR predictions for Wood Thrush when varying the amount of training data (rows) for different loss functions
+(columns). Model predictions are generated at the centroid of the rendered hexagons for a coarse H3 grid (resolution three), signifying
+locations where we can evaluate the model outputs for the S&T task. We convert the predictions to binary values using the threshold that
+maximizes the F1 score on the S&T data. This is done for each configuration independently. In practice this threshold would be chosen by
+a practitioner to meet particular project requirements. A model that matches the S&T task exactly would show only green and light grey
+hexagons. All models improve their range maps when given access to more data, as expected. LAN−SSDL overestimates the western
+range extent and misses the southern extent with few examples, but refines these extents with additional data. LAN−full starts off with
+most of the range covered (few “False Negative” hexagons) and proceeds to tighten the boundaries with more data. The range predicted
+by LAN−SLDS is somewhere in between. All models use coordinates as input.
+
+9
+
+© Carto © OpenStreetMap contributors© Carto © OpenStreetMap contributors© Carto © OpenStreetMap contributors© Carto © OpenStreetMap contributors© Carto © OpenStreetMap contributors© Carto © OpenStreetMap contributors© Carto © OpenStreetMap contributors© Carto © OpenStreetMap contributors© Carto © OpenStreetMap contributorsTrue PositiveFalse PositiveTrue NegativeFalse NegativeSpatial Implicit Neural Representations for Global-Scale Species Mapping
+
+References
+
+Birdlife international and handbook of the birds of the world
+(2022) bird species distribution maps of the world. ver-
+sion 2022.2. http://datazone.birdlife.org/
+species/requestdis, accessed 9 May 2023.
+
+H3. https://h3geo.org/, accessed 9 May 2023.
+</sinr_paper.md>
+</sample_output>

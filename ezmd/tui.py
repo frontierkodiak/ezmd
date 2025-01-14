@@ -5,6 +5,8 @@ Provides all the TUI flows for ezmd, including:
  - Config menu
  - Providers sub-menu (OpenAI only)
  - Manage Remotes sub-menu
+
+Now allows "b" to back out of sub-prompts and gracefully handle large lists.
 """
 
 import os
@@ -27,11 +29,7 @@ from .provider_manager import (
 from .windows_path_utils import is_windows_path, translate_windows_path_to_wsl
 from .rsync_manager import rsync_file, test_rsync_connection
 
-
 def main_menu(config: dict) -> None:
-    """
-    Display the main menu in a loop, until user selects exit.
-    """
     while True:
         print("\n┌────────────────────────────────┐")
         print("│ ezmd - Easy Markdown Tool     │")
@@ -54,31 +52,27 @@ def main_menu(config: dict) -> None:
 
 
 def convert_document_flow(config: dict) -> None:
-    """
-    Interactive flow for converting a document. 
-    Post-conversion, handle remote sync.
-    """
     print("\n[Convert Document]\n")
     title = input("Enter Title: ").strip()
-    source = input("Enter Source (URL or local path): ").strip()
+    if title.lower() in ["b", "back"]:
+        print("[info] Canceling conversion.")
+        return
 
-    # Only openai (or None) from now on. 
-    # But let's keep code flexible if we re-add more providers.
+    source = input("Enter Source (URL or local path): ").strip()
+    if source.lower() in ["b", "back"]:
+        print("[info] Canceling conversion.")
+        return
+
     default_provider = config.get("default_provider", None)
     provider: Optional[str] = None
 
     if is_openai_available(config):
-        # default is openai if config says so
         provider = default_provider if default_provider == "openai" else None
 
-    # Ask user if they'd like to use an LLM
-    if provider is None:
-        # user has no default or not openai
-        # ask them if they'd like to enable openai for this job
-        if is_openai_available(config):
-            choice = input("Use OpenAI LLM for images? (y/N): ").strip().lower()
-            if choice.startswith("y"):
-                provider = "openai"
+    if provider is None and is_openai_available(config):
+        choice = input("Use OpenAI LLM for images? (y/N): ").strip().lower()
+        if choice.startswith("y"):
+            provider = "openai"
 
     force_overwrite_default = config.get("force_overwrite_default", False)
     ow_input = input(
@@ -168,12 +162,23 @@ def _choose_and_sync_remotes(md_path: str, remotes: dict):
     if not remotes:
         return
     aliases = list(remotes.keys())
-    print("\nAvailable remotes:")
-    for idx, alias in enumerate(aliases, start=1):
-        info = remotes[alias]
-        print(f" ({idx}) {alias} -> {info['ssh_host']}:{info['remote_dir']}")
+    # if more than 5 remotes, let's do a "Press Enter to continue" approach
+    if len(aliases) > 5:
+        # chunk them
+        for i, alias in enumerate(aliases):
+            info = remotes[alias]
+            print(f" ({i+1}) {alias} -> {info['ssh_host']}:{info['remote_dir']}")
+            if (i+1) % 5 == 0 and (i+1) < len(aliases):
+                input("[Press Enter to see more remotes]")
 
-    sel = input("\nEnter comma-separated list of remotes (e.g. '1,3') or blank to skip: ").strip()
+        sel = input("\nEnter comma-separated list of remotes (e.g. '1,3') or blank to skip: ").strip()
+    else:
+        print("\nAvailable remotes:")
+        for idx, alias in enumerate(aliases, start=1):
+            info = remotes[alias]
+            print(f" ({idx}) {alias} -> {info['ssh_host']}:{info['remote_dir']}")
+        sel = input("\nEnter comma-separated list of remotes (e.g. '1,3') or blank to skip: ").strip()
+
     if not sel:
         return
 
@@ -216,11 +221,16 @@ def config_menu(config: dict) -> None:
             print(f"│   {pname} -> enabled: {en}")
         print("├──────────────────────────────────┤")
         print("│ Remotes:                       │")
-        for alias, info in config.get("remotes", {}).items():
-            ssh_host = info.get("ssh_host", "???")
-            rdir = info.get("remote_dir", "???")
-            autos = info.get("auto_sync", False)
-            print(f"│   {alias} -> {ssh_host}:{rdir}, auto_sync={autos}")
+        rkeys = list(config.get("remotes", {}).keys())
+        if len(rkeys) == 0:
+            print("│   (No remotes configured)")
+        else:
+            for alias in rkeys:
+                info = config["remotes"][alias]
+                ssh_host = info.get("ssh_host", "???")
+                rdir = info.get("remote_dir", "???")
+                autos = info.get("auto_sync", False)
+                print(f"│   {alias} -> {ssh_host}:{rdir}, auto_sync={autos}")
         print("├──────────────────────────────────┤")
         print("│ a) Edit base_context_dir        │")
         print("│ b) Edit max_filename_length     │")
@@ -264,13 +274,6 @@ def config_menu(config: dict) -> None:
 
 
 def providers_submenu(config: dict) -> None:
-    """
-    Submenu to manage OpenAI configuration:
-      1) Toggle openai enable/disable in config
-      2) Edit openai key
-      3) Set default model (EZMD_IMG_DESC_MODEL)
-      4) Toggle "use LLM for images" (EZMD_USE_LLM_IMG_DESC)
-    """
     provs = config.get("providers", {})
     if "openai" not in provs:
         provs["openai"] = {"enabled": False, "default_model": "gpt-4o-mini"}
@@ -282,7 +285,7 @@ def providers_submenu(config: dict) -> None:
         openai_cfg = provs["openai"]
         en = openai_cfg.get("enabled", False)
         key = get_openai_key()
-        default_model = get_img_desc_model()  # from env
+        default_model = get_img_desc_model()
         use_llm = get_use_llm_img_desc()
 
         print(f"OpenAI -> enabled: {en}")
@@ -314,7 +317,6 @@ def providers_submenu(config: dict) -> None:
             else:
                 set_img_desc_model(newmodel)
         elif choice == "4":
-            # flip
             current = get_use_llm_img_desc()
             set_use_llm_img_desc(not current)
         elif choice == "5":
@@ -327,9 +329,6 @@ def providers_submenu(config: dict) -> None:
 
 
 def manage_remotes_menu(config: dict) -> None:
-    """
-    Submenu to manage the rsync-based remote sync configurations.
-    """
     while True:
         print("\n┌──────────────────────────────────┐")
         print("│ Manage Remotes                 │")
@@ -339,7 +338,6 @@ def manage_remotes_menu(config: dict) -> None:
             config["remotes"] = {}
             remotes = config["remotes"]
 
-        # Show a summary
         if remotes:
             for alias, info in remotes.items():
                 print(f"   ALIAS: {alias}")
@@ -371,7 +369,10 @@ def manage_remotes_menu(config: dict) -> None:
 
 
 def _add_new_remote(remotes: dict):
-    alias = input("Enter alias (e.g. 'mylaptop'): ").strip()
+    alias = input("Enter alias (e.g. 'mylaptop' or 'b' to go back): ").strip()
+    if alias.lower() in ["b", "back"]:
+        print("[info] Cancelling add remote.")
+        return
     if not alias:
         print("[!] Alias is empty, aborting.")
         return
@@ -379,9 +380,12 @@ def _add_new_remote(remotes: dict):
         print("[!] That alias already exists.")
         return
 
-    ssh_host = input("ssh_host (e.g. user@myhost): ").strip()
-    remote_dir = input("remote_dir (default=~): ").strip() or "~"
+    ssh_host = input("ssh_host (e.g. user@myhost) or 'b' to cancel: ").strip()
+    if ssh_host.lower() in ["b", "back"]:
+        print("[info] Cancelling add remote.")
+        return
 
+    remote_dir = input("remote_dir (default=~): ").strip() or "~"
     print("\nTesting rsync connection with a dummy file (dry-run)...")
     success = test_rsync_connection(ssh_host, remote_dir, timeout_sec=10)
     if not success:
@@ -408,11 +412,14 @@ def _edit_remote(remotes: dict, config: dict):
         print("[!] No remotes to edit.")
         return
     aliases = list(remotes.keys())
-    print("\nWhich remote do you want to edit?")
+    print("\nWhich remote do you want to edit? (or 'b' to go back)")
     for idx, a in enumerate(aliases, start=1):
         print(f" {idx}) {a}")
 
     choice = input("Selection: ").strip()
+    if choice.lower() in ["b", "back"]:
+        print("[info] Cancelling edit remote.")
+        return
     try:
         i = int(choice)
         alias = aliases[i-1]
@@ -423,11 +430,17 @@ def _edit_remote(remotes: dict, config: dict):
     info = remotes[alias]
     print(f"Editing remote '{alias}'...")
 
-    new_ssh = input(f"ssh_host [current={info['ssh_host']}] (blank to skip): ").strip()
+    new_ssh = input(f"ssh_host [current={info['ssh_host']}] (blank to skip, or 'b' to cancel): ").strip()
+    if new_ssh.lower() in ["b", "back"]:
+        print("[info] Cancelling edit remote.")
+        return
     if new_ssh:
         info["ssh_host"] = new_ssh
 
-    new_dir = input(f"remote_dir [current={info['remote_dir']}] (blank to skip): ").strip()
+    new_dir = input(f"remote_dir [current={info['remote_dir']}] (blank to skip, or 'b' to cancel): ").strip()
+    if new_dir.lower() in ["b", "back"]:
+        print("[info] Cancelling edit remote.")
+        return
     if new_dir:
         info["remote_dir"] = new_dir
 
@@ -455,11 +468,14 @@ def _remove_remote(remotes: dict, config: dict):
         print("[!] No remotes to remove.")
         return
     aliases = list(remotes.keys())
-    print("\nWhich remote do you want to remove?")
+    print("\nWhich remote do you want to remove? (or 'b' to go back)")
     for idx, a in enumerate(aliases, start=1):
         print(f" {idx}) {a}")
 
     choice = input("Selection: ").strip()
+    if choice.lower() in ["b", "back"]:
+        print("[info] Cancelling remove remote.")
+        return
     try:
         i = int(choice)
         alias = aliases[i-1]
