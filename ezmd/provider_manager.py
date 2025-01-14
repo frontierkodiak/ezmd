@@ -1,7 +1,9 @@
 """
 Manages environment variables for storing and retrieving
-OpenAI and Google Gemini keys. Also checks availability.
-Now persists these keys in ~/.config/ezmd/ezmd.env.
+OpenAI keys and usage toggles (e.g., use LLM for images).
+Now persists these in ~/.config/ezmd/ezmd.env.
+
+Removed references to google gemini.
 """
 
 import os
@@ -15,7 +17,7 @@ def _get_env_file_path() -> str:
     Return the path to the environment (.env) file used by ezmd.
     We'll store this as <config_dir>/ezmd.env
     """
-    cfg_path = get_config_path()  # e.g. ~/.config/ezmd/config.json
+    cfg_path = get_config_path()
     config_dir = os.path.dirname(cfg_path)
     return os.path.join(config_dir, "ezmd.env")
 
@@ -35,8 +37,6 @@ def _load_env_file() -> dict:
                 # skip blanks/comments
                 if not line or line.startswith("#"):
                     continue
-                # parse KEY=val
-                # naive parse
                 if "=" in line:
                     key, val = line.split("=", 1)
                     result[key.strip()] = val.strip()
@@ -52,8 +52,6 @@ def _save_env_file(envdict: dict) -> None:
     env_path = _get_env_file_path()
     lines = []
     for k, v in envdict.items():
-        # If v has spaces or special chars, user must handle quotes etc.
-        # We'll keep it simple and not do advanced quoting.
         lines.append(f"{k}={v}")
     try:
         with open(env_path, "w", encoding="utf-8") as f:
@@ -104,26 +102,44 @@ def get_openai_key() -> str:
     return os.environ.get("EZMD_OPENAI_KEY", "")
 
 
-def set_google_gemini_key(key: str) -> None:
+def set_use_llm_img_desc(use_llm: bool) -> None:
     """
-    Sets or clears the google gemini key in the environment and .env file.
+    If use_llm=True, set EZMD_USE_LLM_IMG_DESC='true'. Otherwise remove or set 'false'.
     """
     envdict = _load_env_file()
-
-    if key:
-        envdict["EZMD_GOOGLE_GEMINI_KEY"] = key
-        os.environ["EZMD_GOOGLE_GEMINI_KEY"] = key
+    if use_llm:
+        envdict["EZMD_USE_LLM_IMG_DESC"] = "true"
+        os.environ["EZMD_USE_LLM_IMG_DESC"] = "true"
     else:
-        if "EZMD_GOOGLE_GEMINI_KEY" in envdict:
-            del envdict["EZMD_GOOGLE_GEMINI_KEY"]
-        if "EZMD_GOOGLE_GEMINI_KEY" in os.environ:
-            del os.environ["EZMD_GOOGLE_GEMINI_KEY"]
-
+        # we can store "false" if we prefer
+        envdict["EZMD_USE_LLM_IMG_DESC"] = "false"
+        os.environ["EZMD_USE_LLM_IMG_DESC"] = "false"
     _save_env_file(envdict)
 
 
-def get_google_gemini_key() -> str:
-    return os.environ.get("EZMD_GOOGLE_GEMINI_KEY", "")
+def get_use_llm_img_desc() -> bool:
+    """
+    Returns True if EZMD_USE_LLM_IMG_DESC is 'true' (case-insensitive).
+    """
+    val = os.environ.get("EZMD_USE_LLM_IMG_DESC", "false").lower()
+    return val == "true"
+
+
+def set_img_desc_model(model: str) -> None:
+    """
+    Example models: 'gpt-4', 'gpt-4o', 'gpt-4o-mini', etc.
+    """
+    envdict = _load_env_file()
+    envdict["EZMD_IMG_DESC_MODEL"] = model
+    os.environ["EZMD_IMG_DESC_MODEL"] = model
+    _save_env_file(envdict)
+
+
+def get_img_desc_model() -> str:
+    """
+    If EZMD_IMG_DESC_MODEL is not set, fallback to 'gpt-4o-mini'.
+    """
+    return os.environ.get("EZMD_IMG_DESC_MODEL", "gpt-4o-mini")
 
 
 def is_openai_available(config: dict) -> bool:
@@ -137,16 +153,3 @@ def is_openai_available(config: dict) -> bool:
     if not oinfo.get("enabled", False):
         return False
     return len(get_openai_key()) > 0
-
-
-def is_google_gemini_available(config: dict) -> bool:
-    """
-    Returns True if google gemini is enabled in config and we have a key in env.
-    """
-    if not config:
-        return False
-    providers = config.get("providers", {})
-    ginfo = providers.get("google_gemini", {})
-    if not ginfo.get("enabled", False):
-        return False
-    return len(get_google_gemini_key()) > 0

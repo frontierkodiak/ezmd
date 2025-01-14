@@ -1,26 +1,32 @@
 """
-Provides all the TUI (text user interface) flows for ezmd:
+Provides all the TUI flows for ezmd, including:
  - Main menu
  - Convert flow
  - Config menu
- - Provider sub-menu
- - NEW: Remote sync flows (remotes sub-menu) and post-conversion sync logic
+ - Providers sub-menu (OpenAI only)
+ - Manage Remotes sub-menu
 """
 
 import os
 import time
 import sys
 import subprocess
+from typing import Optional
+
 from .converter import convert_document
 from .config_manager import save_config, load_config
 from .provider_manager import (
     is_openai_available,
-    is_google_gemini_available,
     set_openai_key,
-    set_google_gemini_key,
+    get_openai_key,
+    set_use_llm_img_desc,
+    get_use_llm_img_desc,
+    set_img_desc_model,
+    get_img_desc_model,
 )
 from .windows_path_utils import is_windows_path, translate_windows_path_to_wsl
 from .rsync_manager import rsync_file, test_rsync_connection
+
 
 def main_menu(config: dict) -> None:
     """
@@ -50,55 +56,34 @@ def main_menu(config: dict) -> None:
 def convert_document_flow(config: dict) -> None:
     """
     Interactive flow for converting a document. 
-    Prompts user for title, source, provider, overwrite, etc.
-    Post-conversion, we handle remote sync logic.
+    Post-conversion, handle remote sync.
     """
     print("\n[Convert Document]\n")
     title = input("Enter Title: ").strip()
     source = input("Enter Source (URL or local path): ").strip()
 
-    # Determine available providers
-    available_providers = []
-    if is_openai_available(config):
-        available_providers.append("openai")
-    if is_google_gemini_available(config):
-        available_providers.append("google_gemini")
-
+    # Only openai (or None) from now on. 
+    # But let's keep code flexible if we re-add more providers.
     default_provider = config.get("default_provider", None)
-    if default_provider not in available_providers:
-        default_provider = None
+    provider: Optional[str] = None
 
-    print("\nAvailable LLM Providers:")
-    print(" (0) None (no LLM usage)")
-    for idx, prov in enumerate(available_providers, start=1):
-        mark = "(default)" if prov == default_provider else ""
-        print(f" ({idx}) {prov} {mark}")
+    if is_openai_available(config):
+        # default is openai if config says so
+        provider = default_provider if default_provider == "openai" else None
 
-    provider_choice = input("Choose LLM provider [Press Enter for default]: ").strip()
-    chosen_provider = None
-    if provider_choice == "":
-        chosen_provider = default_provider
-    else:
-        if provider_choice == "0":
-            chosen_provider = None
-        else:
-            try:
-                numeric = int(provider_choice)
-                if 1 <= numeric <= len(available_providers):
-                    chosen_provider = available_providers[numeric - 1]
-                else:
-                    print("[!] Invalid provider selection, ignoring.")
-                    chosen_provider = None
-            except ValueError:
-                print("[!] Invalid provider selection, ignoring.")
-                chosen_provider = None
+    # Ask user if they'd like to use an LLM
+    if provider is None:
+        # user has no default or not openai
+        # ask them if they'd like to enable openai for this job
+        if is_openai_available(config):
+            choice = input("Use OpenAI LLM for images? (y/N): ").strip().lower()
+            if choice.startswith("y"):
+                provider = "openai"
 
-    # Overwrite or interactive version approach
     force_overwrite_default = config.get("force_overwrite_default", False)
-    prompt = (
+    ow_input = input(
         f"Overwrite if file exists? (Y/n) [default={'Y' if force_overwrite_default else 'N'}]: "
-    )
-    ow_input = input(prompt).strip().lower()
+    ).strip().lower()
 
     if ow_input == "":
         overwrite = True if force_overwrite_default else False
@@ -107,11 +92,9 @@ def convert_document_flow(config: dict) -> None:
     else:
         overwrite = False
 
-    # local path check
     if not source.startswith("http"):
         if is_windows_path(source):
             source = translate_windows_path_to_wsl(source)
-
         if not os.path.exists(source):
             print(f"[!] Local file path does not exist: {source}")
             return
@@ -141,7 +124,7 @@ def convert_document_flow(config: dict) -> None:
             title=title,
             source=source,
             config=config,
-            provider=chosen_provider,
+            provider=provider if provider else "",
             overwrite=overwrite,
         )
     except Exception as ex:
@@ -154,23 +137,15 @@ def convert_document_flow(config: dict) -> None:
         print(f"[!] Error during conversion: {error_message}")
     else:
         print(f"[+] Output saved to {md_path}")
-        # Post-conversion, let's handle remote sync
         if md_path:
-            # In future, if multiple files, we might pass a list. For now, single-file approach.
             _handle_post_conversion_rsync(md_path, config)
 
 
 def _handle_post_conversion_rsync(md_path: str, config: dict):
-    """
-    This function:
-      1) Auto-syncs to all remotes with auto_sync=true
-      2) If there are other remotes, prompts the user to optionally sync to multiple
-    """
     remotes = config.get("remotes", {})
     if not remotes:
-        return  # No remotes configured
+        return
 
-    # 1) Auto-sync
     any_auto = False
     for alias, info in remotes.items():
         if info.get("auto_sync", False):
@@ -178,40 +153,30 @@ def _handle_post_conversion_rsync(md_path: str, config: dict):
             success = rsync_file(md_path, info["ssh_host"], info["remote_dir"], timeout_sec=10)
             if not success:
                 print(f"[!] Warning: auto-sync to remote '{alias}' failed.")
-    # 2) Multi-select if user wants
-    # If there are no auto-sync or the user might want additional
-    # We'll ask "Would you like to sync to additional remote(s)?"
+
     if not any_auto:
-        # No auto-sync, so let's see if user wants to sync
         choice = input("Sync new .md file(s) to a remote? (y/N): ").strip().lower()
         if choice.startswith("y"):
-            # We'll do multi-select
             _choose_and_sync_remotes(md_path, remotes)
     else:
-        # Some auto-sync happened. Do we also want to let them sync to additional?
         choice = input("Sync to additional remote(s) as well? (y/N): ").strip().lower()
         if choice.startswith("y"):
             _choose_and_sync_remotes(md_path, remotes)
 
 
 def _choose_and_sync_remotes(md_path: str, remotes: dict):
-    """
-    Let the user pick multiple remote aliases from a list. 
-    Then for each chosen alias, do an rsync.
-    """
     if not remotes:
         return
     aliases = list(remotes.keys())
     print("\nAvailable remotes:")
     for idx, alias in enumerate(aliases, start=1):
-        print(f" ({idx}) {alias} -> {remotes[alias]['ssh_host']}:{remotes[alias]['remote_dir']}")
+        info = remotes[alias]
+        print(f" ({idx}) {alias} -> {info['ssh_host']}:{info['remote_dir']}")
 
-    print("\nEnter a comma-separated list of remotes to sync (e.g. '1,3') or blank to skip.")
-    sel = input("Selection: ").strip()
+    sel = input("\nEnter comma-separated list of remotes (e.g. '1,3') or blank to skip: ").strip()
     if not sel:
         return
 
-    # parse selection
     choices = []
     for part in sel.split(","):
         part = part.strip()
@@ -222,7 +187,6 @@ def _choose_and_sync_remotes(md_path: str, remotes: dict):
         except:
             print(f"[!] Invalid selection: {part}")
 
-    # Now perform rsync for each
     for alias in choices:
         info = remotes[alias]
         success = rsync_file(md_path, info["ssh_host"], info["remote_dir"], timeout_sec=10)
@@ -231,11 +195,6 @@ def _choose_and_sync_remotes(md_path: str, remotes: dict):
 
 
 def config_menu(config: dict) -> None:
-    """
-    Show the configuration menu. 
-    Allows editing base_context_dir, max_filename_length,
-    force_overwrite_default, default_provider, etc.
-    """
     while True:
         print("\n┌──────────────────────────────────┐")
         print("│ ezmd Configuration             │")
@@ -257,7 +216,6 @@ def config_menu(config: dict) -> None:
             print(f"│   {pname} -> enabled: {en}")
         print("├──────────────────────────────────┤")
         print("│ Remotes:                       │")
-        # Show a quick summary of the user's configured remotes
         for alias, info in config.get("remotes", {}).items():
             ssh_host = info.get("ssh_host", "???")
             rdir = info.get("remote_dir", "???")
@@ -289,8 +247,8 @@ def config_menu(config: dict) -> None:
             save_config(config)
             print(f"force_overwrite_default is now {config['force_overwrite_default']}")
         elif choice == "d":
-            new_val = input("Enter default provider name (openai/google_gemini) or blank to disable default: ").strip()
-            if new_val in ["openai", "google_gemini"]:
+            new_val = input("Enter default provider name (openai) or blank to disable default: ").strip()
+            if new_val in ["openai"]:
                 config["default_provider"] = new_val
             else:
                 config["default_provider"] = None
@@ -303,6 +261,69 @@ def config_menu(config: dict) -> None:
             break
         else:
             print("[!] Invalid choice")
+
+
+def providers_submenu(config: dict) -> None:
+    """
+    Submenu to manage OpenAI configuration:
+      1) Toggle openai enable/disable in config
+      2) Edit openai key
+      3) Set default model (EZMD_IMG_DESC_MODEL)
+      4) Toggle "use LLM for images" (EZMD_USE_LLM_IMG_DESC)
+    """
+    provs = config.get("providers", {})
+    if "openai" not in provs:
+        provs["openai"] = {"enabled": False, "default_model": "gpt-4o-mini"}
+
+    while True:
+        print("\n┌──────────────────────────────────┐")
+        print("│ Manage Providers (OpenAI)      │")
+        print("├──────────────────────────────────┤")
+        openai_cfg = provs["openai"]
+        en = openai_cfg.get("enabled", False)
+        key = get_openai_key()
+        default_model = get_img_desc_model()  # from env
+        use_llm = get_use_llm_img_desc()
+
+        print(f"OpenAI -> enabled: {en}")
+        key_str = f"<Yes, starts with {key[:6]}...>" if key else "<No key>"
+        print(f"    Key in env: {key_str}")
+        print(f"    default_model (env): {default_model}")
+        print(f"    use LLM for images? {use_llm}")
+        print("├──────────────────────────────────┤")
+        print("1) Toggle openai enable/disable")
+        print("2) Edit openai key")
+        print("3) Select default model (gpt-4, gpt-4o, gpt-4o-mini...)")
+        print("4) Toggle LLM usage for images")
+        print("5) Return to config menu")
+        print("└──────────────────────────────────┘")
+
+        choice = input("Select an option: ").strip()
+        if choice == "1":
+            openai_cfg["enabled"] = not openai_cfg["enabled"]
+            provs["openai"] = openai_cfg
+            config["providers"] = provs
+            save_config(config)
+        elif choice == "2":
+            newkey = input("Enter new openai key (blank to remove): ").strip()
+            set_openai_key(newkey if newkey else "")
+        elif choice == "3":
+            newmodel = input("Enter new default model (e.g., gpt-4, gpt-4o, gpt-4o-mini): ").strip()
+            if not newmodel:
+                print("[!] Skipped.")
+            else:
+                set_img_desc_model(newmodel)
+        elif choice == "4":
+            # flip
+            current = get_use_llm_img_desc()
+            set_use_llm_img_desc(not current)
+        elif choice == "5":
+            break
+        else:
+            print("[!] Invalid choice")
+
+    config["providers"] = provs
+    save_config(config)
 
 
 def manage_remotes_menu(config: dict) -> None:
@@ -324,8 +345,7 @@ def manage_remotes_menu(config: dict) -> None:
                 print(f"   ALIAS: {alias}")
                 print(f"      ssh_host: {info.get('ssh_host','???')}")
                 print(f"      remote_dir: {info.get('remote_dir','???')}")
-                print(f"      auto_sync: {info.get('auto_sync',False)}")
-                print("")
+                print(f"      auto_sync: {info.get('auto_sync',False)}\n")
         else:
             print("  (No remotes configured)")
 
@@ -351,10 +371,6 @@ def manage_remotes_menu(config: dict) -> None:
 
 
 def _add_new_remote(remotes: dict):
-    """
-    Prompt the user for a new alias, ssh_host, remote_dir. 
-    Then attempt a test run. If success, optionally set auto_sync.
-    """
     alias = input("Enter alias (e.g. 'mylaptop'): ").strip()
     if not alias:
         print("[!] Alias is empty, aborting.")
@@ -366,7 +382,6 @@ def _add_new_remote(remotes: dict):
     ssh_host = input("ssh_host (e.g. user@myhost): ").strip()
     remote_dir = input("remote_dir (default=~): ").strip() or "~"
 
-    # Test the connection
     print("\nTesting rsync connection with a dummy file (dry-run)...")
     success = test_rsync_connection(ssh_host, remote_dir, timeout_sec=10)
     if not success:
@@ -375,11 +390,11 @@ def _add_new_remote(remotes: dict):
         if not choice.startswith("y"):
             return
 
-    # auto_sync
+    auto_sync = False
     ask_sync = input("Enable auto_sync for this remote by default? (y/N): ").strip().lower()
-    auto_sync = True if ask_sync.startswith("y") else False
+    if ask_sync.startswith("y"):
+        auto_sync = True
 
-    # Save
     remotes[alias] = {
         "ssh_host": ssh_host,
         "remote_dir": remote_dir,
@@ -389,9 +404,6 @@ def _add_new_remote(remotes: dict):
 
 
 def _edit_remote(remotes: dict, config: dict):
-    """
-    Let user pick a remote alias to edit. Then let them update fields, re-test, etc.
-    """
     if not remotes:
         print("[!] No remotes to edit.")
         return
@@ -402,8 +414,8 @@ def _edit_remote(remotes: dict, config: dict):
 
     choice = input("Selection: ").strip()
     try:
-        idx = int(choice)
-        alias = aliases[idx-1]
+        i = int(choice)
+        alias = aliases[i-1]
     except:
         print("[!] Invalid choice.")
         return
@@ -419,7 +431,6 @@ def _edit_remote(remotes: dict, config: dict):
     if new_dir:
         info["remote_dir"] = new_dir
 
-    # test
     test_choice = input("Test connection again? (y/N): ").strip().lower()
     if test_choice.startswith("y"):
         success = test_rsync_connection(info["ssh_host"], info["remote_dir"], timeout_sec=10)
@@ -428,7 +439,6 @@ def _edit_remote(remotes: dict, config: dict):
         else:
             print("[!] Test failed. You can proceed, but it might not work in practice.")
 
-    # auto_sync
     ask_sync = input(f"auto_sync? [current={info.get('auto_sync',False)}] (y=enable / n=disable / Enter=skip): ").strip().lower()
     if ask_sync == "y":
         info["auto_sync"] = True
@@ -436,15 +446,11 @@ def _edit_remote(remotes: dict, config: dict):
         info["auto_sync"] = False
 
     remotes[alias] = info
-    print("[+] Remote updated.")
-    # We don't strictly need to do config object merges, but let's do it
     config["remotes"] = remotes
+    print("[+] Remote updated.")
 
 
 def _remove_remote(remotes: dict, config: dict):
-    """
-    Pick an alias to remove from the dictionary.
-    """
     if not remotes:
         print("[!] No remotes to remove.")
         return
@@ -455,8 +461,8 @@ def _remove_remote(remotes: dict, config: dict):
 
     choice = input("Selection: ").strip()
     try:
-        idx = int(choice)
-        alias = aliases[idx-1]
+        i = int(choice)
+        alias = aliases[i-1]
     except:
         print("[!] Invalid choice.")
         return
