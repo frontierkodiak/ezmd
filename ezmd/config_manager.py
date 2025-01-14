@@ -1,6 +1,8 @@
 """
 Handles saving/loading config from a JSON file in ~/.config/ezmd/config.json,
 and a first-time setup wizard if no config file is found.
+
+Now includes a default "remotes" field for the new rsync-based Remote Sync feature.
 """
 
 import os
@@ -23,7 +25,16 @@ DEFAULT_CONFIG = {
             "default_model": "gemini-2.0-flash-exp"
         }
     },
-    "default_provider": None
+    "default_provider": None,
+    # New field for storing remotes:
+    # {
+    #   "alias1": {
+    #       "ssh_host": "myuser@myhost",
+    #       "remote_dir": "~/my_remote_folder",
+    #       "auto_sync": false
+    #   }
+    # }
+    "remotes": {}
 }
 
 def get_config_path() -> str:
@@ -52,6 +63,9 @@ def load_config() -> dict:
     try:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
+            # Ensure "remotes" is present
+            if "remotes" not in data:
+                data["remotes"] = {}
             return data
     except Exception:
         # if there's a parse error, treat as no config
@@ -119,6 +133,9 @@ def init_config_wizard() -> dict:
         cfg["default_provider"] = defprov
     else:
         cfg["default_provider"] = None
+
+    # Remotes remain empty by default. 
+    # We'll prompt user for them in the new "Manage Remotes" menu if needed.
 
     print("Setup complete! We'll store this config now.\n")
     return cfg

@@ -4,13 +4,15 @@ Provides all the TUI (text user interface) flows for ezmd:
  - Convert flow
  - Config menu
  - Provider sub-menu
+ - NEW: Remote sync flows (remotes sub-menu) and post-conversion sync logic
 """
 
 import os
 import time
 import sys
+import subprocess
 from .converter import convert_document
-from .config_manager import save_config
+from .config_manager import save_config, load_config
 from .provider_manager import (
     is_openai_available,
     is_google_gemini_available,
@@ -18,7 +20,7 @@ from .provider_manager import (
     set_google_gemini_key,
 )
 from .windows_path_utils import is_windows_path, translate_windows_path_to_wsl
-
+from .rsync_manager import rsync_file, test_rsync_connection
 
 def main_menu(config: dict) -> None:
     """
@@ -49,6 +51,7 @@ def convert_document_flow(config: dict) -> None:
     """
     Interactive flow for converting a document. 
     Prompts user for title, source, provider, overwrite, etc.
+    Post-conversion, we handle remote sync logic.
     """
     print("\n[Convert Document]\n")
     title = input("Enter Title: ").strip()
@@ -151,6 +154,80 @@ def convert_document_flow(config: dict) -> None:
         print(f"[!] Error during conversion: {error_message}")
     else:
         print(f"[+] Output saved to {md_path}")
+        # Post-conversion, let's handle remote sync
+        if md_path:
+            # In future, if multiple files, we might pass a list. For now, single-file approach.
+            _handle_post_conversion_rsync(md_path, config)
+
+
+def _handle_post_conversion_rsync(md_path: str, config: dict):
+    """
+    This function:
+      1) Auto-syncs to all remotes with auto_sync=true
+      2) If there are other remotes, prompts the user to optionally sync to multiple
+    """
+    remotes = config.get("remotes", {})
+    if not remotes:
+        return  # No remotes configured
+
+    # 1) Auto-sync
+    any_auto = False
+    for alias, info in remotes.items():
+        if info.get("auto_sync", False):
+            any_auto = True
+            success = rsync_file(md_path, info["ssh_host"], info["remote_dir"], timeout_sec=10)
+            if not success:
+                print(f"[!] Warning: auto-sync to remote '{alias}' failed.")
+    # 2) Multi-select if user wants
+    # If there are no auto-sync or the user might want additional
+    # We'll ask "Would you like to sync to additional remote(s)?"
+    if not any_auto:
+        # No auto-sync, so let's see if user wants to sync
+        choice = input("Sync new .md file(s) to a remote? (y/N): ").strip().lower()
+        if choice.startswith("y"):
+            # We'll do multi-select
+            _choose_and_sync_remotes(md_path, remotes)
+    else:
+        # Some auto-sync happened. Do we also want to let them sync to additional?
+        choice = input("Sync to additional remote(s) as well? (y/N): ").strip().lower()
+        if choice.startswith("y"):
+            _choose_and_sync_remotes(md_path, remotes)
+
+
+def _choose_and_sync_remotes(md_path: str, remotes: dict):
+    """
+    Let the user pick multiple remote aliases from a list. 
+    Then for each chosen alias, do an rsync.
+    """
+    if not remotes:
+        return
+    aliases = list(remotes.keys())
+    print("\nAvailable remotes:")
+    for idx, alias in enumerate(aliases, start=1):
+        print(f" ({idx}) {alias} -> {remotes[alias]['ssh_host']}:{remotes[alias]['remote_dir']}")
+
+    print("\nEnter a comma-separated list of remotes to sync (e.g. '1,3') or blank to skip.")
+    sel = input("Selection: ").strip()
+    if not sel:
+        return
+
+    # parse selection
+    choices = []
+    for part in sel.split(","):
+        part = part.strip()
+        try:
+            i = int(part)
+            if 1 <= i <= len(aliases):
+                choices.append(aliases[i-1])
+        except:
+            print(f"[!] Invalid selection: {part}")
+
+    # Now perform rsync for each
+    for alias in choices:
+        info = remotes[alias]
+        success = rsync_file(md_path, info["ssh_host"], info["remote_dir"], timeout_sec=10)
+        if not success:
+            print(f"[!] Warning: sync to '{alias}' failed.")
 
 
 def config_menu(config: dict) -> None:
@@ -179,11 +256,20 @@ def config_menu(config: dict) -> None:
             en = pinfo.get("enabled", False)
             print(f"│   {pname} -> enabled: {en}")
         print("├──────────────────────────────────┤")
+        print("│ Remotes:                       │")
+        # Show a quick summary of the user's configured remotes
+        for alias, info in config.get("remotes", {}).items():
+            ssh_host = info.get("ssh_host", "???")
+            rdir = info.get("remote_dir", "???")
+            autos = info.get("auto_sync", False)
+            print(f"│   {alias} -> {ssh_host}:{rdir}, auto_sync={autos}")
+        print("├──────────────────────────────────┤")
         print("│ a) Edit base_context_dir        │")
         print("│ b) Edit max_filename_length     │")
         print("│ c) Toggle force_overwrite       │")
         print("│ d) Edit default_provider        │")
         print("│ e) Manage providers...          │")
+        print("│ r) Manage remotes...            │")
         print("│ f) Return to main menu          │")
         print("└──────────────────────────────────┘")
 
@@ -211,60 +297,172 @@ def config_menu(config: dict) -> None:
             save_config(config)
         elif choice == "e":
             providers_submenu(config)
+        elif choice == "r":
+            manage_remotes_menu(config)
         elif choice == "f":
             break
         else:
             print("[!] Invalid choice")
 
 
-def providers_submenu(config: dict) -> None:
+def manage_remotes_menu(config: dict) -> None:
     """
-    Manage providers: toggle enable, set keys, etc.
+    Submenu to manage the rsync-based remote sync configurations.
     """
     while True:
         print("\n┌──────────────────────────────────┐")
-        print("│ Manage Providers               │")
+        print("│ Manage Remotes                 │")
         print("├──────────────────────────────────┤")
-        provs = config.get("providers", {})
-        if "openai" not in provs:
-            provs["openai"] = {"enabled": False, "default_model": "gpt-4"}
-        if "google_gemini" not in provs:
-            provs["google_gemini"] = {"enabled": False, "default_model": "gemini-2.0-flash-exp"}
+        remotes = config.get("remotes", {})
+        if not isinstance(remotes, dict):
+            config["remotes"] = {}
+            remotes = config["remotes"]
 
-        print(f"│ openai -> (enabled={provs['openai']['enabled']}) ")
-        openai_key = os.environ.get("EZMD_OPENAI_KEY", None)
-        openai_key_str = f"<Yes, starts with {openai_key[:6]}...>" if openai_key else "<No>"
-        print(f"│   Key in env: {openai_key_str}")
-        print(f"│ google_gemini -> (enabled={provs['google_gemini']['enabled']}) ")
-        google_key = os.environ.get("EZMD_GOOGLE_GEMINI_KEY", None)
-        google_key_str = f"<Yes, starts with {google_key[:6]}...>" if google_key else "<No>"
-        print(f"│   Key in env: {google_key_str}")
+        # Show a summary
+        if remotes:
+            for alias, info in remotes.items():
+                print(f"   ALIAS: {alias}")
+                print(f"      ssh_host: {info.get('ssh_host','???')}")
+                print(f"      remote_dir: {info.get('remote_dir','???')}")
+                print(f"      auto_sync: {info.get('auto_sync',False)}")
+                print("")
+        else:
+            print("  (No remotes configured)")
+
         print("├──────────────────────────────────┤")
-        print("│ 1) Toggle openai enable/disable │")
-        print("│ 2) Toggle google_gemini         │")
-        print("│ 3) Set/Change openai key        │")
-        print("│ 4) Set/Change google gemini key │")
-        print("│ 5) Return...                    │")
+        print("│ 1) Add Remote                   │")
+        print("│ 2) Edit Remote                  │")
+        print("│ 3) Remove Remote                │")
+        print("│ 4) Return...                    │")
         print("└──────────────────────────────────┘")
 
         choice = input("Select an option: ").strip()
         if choice == "1":
-            provs["openai"]["enabled"] = not provs["openai"]["enabled"]
-            config["providers"] = provs
+            _add_new_remote(remotes)
             save_config(config)
         elif choice == "2":
-            provs["google_gemini"]["enabled"] = not provs["google_gemini"]["enabled"]
-            config["providers"] = provs
-            save_config(config)
+            _edit_remote(remotes, config)
         elif choice == "3":
-            newkey = input("Enter new key for openai (blank to remove): ").strip()
-            set_openai_key(newkey if newkey else "")
+            _remove_remote(remotes, config)
         elif choice == "4":
-            newkey = input("Enter new key for google_gemini (blank to remove): ").strip()
-            set_google_gemini_key(newkey if newkey else "")
-        elif choice == "5":
             break
         else:
             print("[!] Invalid selection")
-    config["providers"] = provs
-    save_config(config)
+
+
+def _add_new_remote(remotes: dict):
+    """
+    Prompt the user for a new alias, ssh_host, remote_dir. 
+    Then attempt a test run. If success, optionally set auto_sync.
+    """
+    alias = input("Enter alias (e.g. 'mylaptop'): ").strip()
+    if not alias:
+        print("[!] Alias is empty, aborting.")
+        return
+    if alias in remotes:
+        print("[!] That alias already exists.")
+        return
+
+    ssh_host = input("ssh_host (e.g. user@myhost): ").strip()
+    remote_dir = input("remote_dir (default=~): ").strip() or "~"
+
+    # Test the connection
+    print("\nTesting rsync connection with a dummy file (dry-run)...")
+    success = test_rsync_connection(ssh_host, remote_dir, timeout_sec=10)
+    if not success:
+        print("[!] Test failed. You can still add this remote, but it might not work.")
+        choice = input("Add anyway? (y/N): ").strip().lower()
+        if not choice.startswith("y"):
+            return
+
+    # auto_sync
+    ask_sync = input("Enable auto_sync for this remote by default? (y/N): ").strip().lower()
+    auto_sync = True if ask_sync.startswith("y") else False
+
+    # Save
+    remotes[alias] = {
+        "ssh_host": ssh_host,
+        "remote_dir": remote_dir,
+        "auto_sync": auto_sync
+    }
+    print(f"[+] Remote '{alias}' added.")
+
+
+def _edit_remote(remotes: dict, config: dict):
+    """
+    Let user pick a remote alias to edit. Then let them update fields, re-test, etc.
+    """
+    if not remotes:
+        print("[!] No remotes to edit.")
+        return
+    aliases = list(remotes.keys())
+    print("\nWhich remote do you want to edit?")
+    for idx, a in enumerate(aliases, start=1):
+        print(f" {idx}) {a}")
+
+    choice = input("Selection: ").strip()
+    try:
+        idx = int(choice)
+        alias = aliases[idx-1]
+    except:
+        print("[!] Invalid choice.")
+        return
+
+    info = remotes[alias]
+    print(f"Editing remote '{alias}'...")
+
+    new_ssh = input(f"ssh_host [current={info['ssh_host']}] (blank to skip): ").strip()
+    if new_ssh:
+        info["ssh_host"] = new_ssh
+
+    new_dir = input(f"remote_dir [current={info['remote_dir']}] (blank to skip): ").strip()
+    if new_dir:
+        info["remote_dir"] = new_dir
+
+    # test
+    test_choice = input("Test connection again? (y/N): ").strip().lower()
+    if test_choice.startswith("y"):
+        success = test_rsync_connection(info["ssh_host"], info["remote_dir"], timeout_sec=10)
+        if success:
+            print("[+] Test succeeded.")
+        else:
+            print("[!] Test failed. You can proceed, but it might not work in practice.")
+
+    # auto_sync
+    ask_sync = input(f"auto_sync? [current={info.get('auto_sync',False)}] (y=enable / n=disable / Enter=skip): ").strip().lower()
+    if ask_sync == "y":
+        info["auto_sync"] = True
+    elif ask_sync == "n":
+        info["auto_sync"] = False
+
+    remotes[alias] = info
+    print("[+] Remote updated.")
+    # We don't strictly need to do config object merges, but let's do it
+    config["remotes"] = remotes
+
+
+def _remove_remote(remotes: dict, config: dict):
+    """
+    Pick an alias to remove from the dictionary.
+    """
+    if not remotes:
+        print("[!] No remotes to remove.")
+        return
+    aliases = list(remotes.keys())
+    print("\nWhich remote do you want to remove?")
+    for idx, a in enumerate(aliases, start=1):
+        print(f" {idx}) {a}")
+
+    choice = input("Selection: ").strip()
+    try:
+        idx = int(choice)
+        alias = aliases[idx-1]
+    except:
+        print("[!] Invalid choice.")
+        return
+
+    confirm = input(f"Are you sure you want to remove remote '{alias}'? (y/N): ").strip().lower()
+    if confirm.startswith("y"):
+        del remotes[alias]
+        config["remotes"] = remotes
+        print(f"[+] Remote '{alias}' removed.")
